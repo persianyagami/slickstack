@@ -1,0 +1,60 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-ubuntu-swapfile.txt #######################
+#### path: /var/www/ss-perms-ubuntu-swapfile #######################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets all file and user permissions for the Ubuntu swapfile #########################
+#### module version: Ubuntu 20.04 LTS ##############################################################
+#### sourced by: ss-perms, ss-install-ubuntu-swap ##################################################
+#### bash aliases: ss perms ubuntu swap, ss perms swap, ss perms swapfile ##########################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Swap: Message (Begin Script) ###################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-ubuntu-swap: Resets all file and user permissions for the Ubuntu swapfile... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Swap: Reset Permissions (SSH) ##################################################
+####################################################################################################
+
+mkdir /var/www/cache/system
+chown root:root /var/www/cache/system ## must be root:root
+chmod 0600 /var/www/cache/system ## must be 0600
+chown root:root /var/www/cache/system/swapfile ## must be root:root
+chmod 0600 /var/www/cache/system/swapfile ## must be 0600
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Swapfile: Touch Timestamp File (End Script) ###################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_UBUNTU_SWAPFILE"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: 
+
+## SS_EOF

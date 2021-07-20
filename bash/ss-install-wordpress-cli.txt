@@ -1,0 +1,103 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-install-wordpress-cli.txt #######################
+#### path: /var/www/ss-install-wordpress-cli #######################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the entire WP-CLI module for SlickStack servers (idempotent) ##############
+#### module version: WP-CLI x.x.x ##################################################################
+#### sourced by: ss-install, ss-install-wordpress ##################################################
+#### bash aliases: ss install wordpress cli, ss install wp cli, ss install wp-cli ##################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Install-WordPress-CLI: Message (Begin Script) ##############################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-install-wordpress-cli: Reinstalls the entire WP-CLI module for SlickStack servers (idempotent)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Install-WordPress-CLI: Cleanup Temporary Files #############################################
+####################################################################################################
+
+## delete tmp files ##
+rm "$TMP_WP_CLI_PHAR"
+rm "$TMP_WP_CLI_YML"
+rm "$TMP_WP_COMPLETION"
+
+####################################################################################################
+### SS-Install-Bash: Prepare WP-CLI Configuration ##################################################
+####################################################################################################
+
+## to keep things simple we include the WP-CLI aliases within our own Bash aliases file ##
+## here we retrieve latest WP-CLI files and move aliases to /var/www/meta/ ##
+
+## uninstall current wp-cli versions ##
+rm "$PATH_WP_CLI_PHAR"
+rm "$PATH_WP_CLI_YML"
+rm "$PATH_WP_COMPLETION_BASH"
+
+## download latest versions ##
+wget -O "$TMP_WP_CLI_PHAR" "$MIRROR_WP_CLI_PHAR"
+wget -O "$TMP_WP_CLI_YML" "$MIRROR_WP_CLI_YML"
+wget -O "$TMP_WP_COMPLETION" "$MIRROR_WP_COMPLETION"
+
+## make files executable ##
+chmod +x "$TMP_WP_CLI_PHAR"
+
+## copy files to destinations ##
+cp "$TMP_WP_CLI_PHAR" "$PATH_WP_CLI_PHAR"
+cp "$TMP_WP_CLI_YML" "$PATH_WP_CLI_YML"
+cp "$TMP_WP_COMPLETION" "$PATH_WP_COMPLETION_BASH"
+
+####################################################################################################
+#### SS-Install-WordPress-CLI: Reset Permissions (WordPress CLI) ###################################
+####################################################################################################
+
+## run ss-perms-wordpress-cli ##
+source "$PATH_SS_PERMS_WORDPRESS_CLI"
+
+####################################################################################################
+#### SS-Install-WordPress-CLI: Cleanup Temporary Files #############################################
+####################################################################################################
+
+## delete tmp files ##
+rm "$TMP_WP_CLI_PHAR"
+rm "$TMP_WP_CLI_YML"
+rm "$TMP_WP_COMPLETION"
+
+####################################################################################################
+#### SS-Install-WordPress-CLI: Touch Timestamp File (End Script) ###################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_INSTALL_WORDPRESS_CLI"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref:
+
+## SS_EOF

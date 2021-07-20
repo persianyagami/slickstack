@@ -1,0 +1,967 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-install.txt #####################################
+#### path: /var/www/ss-install #####################################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the entire SlickStack LEMP environment and all modules (idempotent) #######
+#### module version: Ubuntu 20.04 LTS ##############################################################
+#### sourced by: n/a (wget -O ss slick.fyi && bash ss) #############################################
+#### bash aliases: ss install ######################################################################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+## include SlickStack configuration (if exists) ##
+SS_CONFIG="/var/www/ss-config"
+test -f $SS_CONFIG && source $SS_CONFIG
+
+####################################################################################################
+#### SS-Functions: Critical Bash Variables #########################################################
+####################################################################################################
+
+## SNIPPET: ss-functions, ss-install
+
+## these are kind of like enviroment variables that are used within various ss scripts ##
+## we keep these variables together for easy reference and better organization ##
+
+## ss variables ##
+# SS_PS1=`PS1="\[\e[1;35m\]\u@$(hostname -f)\e[m\]:\[\e[45m\]\w\[\e[m\]$ "`
+SS_LINUX_KERNEL=`uname -a`
+SS_OS_VERSION=`lsb_release -ds`
+SS_CPU_CORES=`grep -c ^processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu || echo "$NUMBER_OF_PROCESSORS"`
+SS_DISK_FREE=`df -k --output=avail "$PWD" | tail -n1`
+# SS_MYSQL_VERSION=`mysqld --version`
+# SS_MYSQL_SIZE=`mysql --execute="SELECT table_schema AS "wordpress", SUM(data_length + index_length) / 1024 / 1024 / 1024 AS "Size (GB)" FROM information_schema.TABLES GROUP BY table_schema";`
+SS_NETWORK_INTERFACE=`ip route get 1.1.1.1 | head -n1 | awk '{print $5}'`
+SS_IPV4_ADDRESS=`ip addr show $SS_NETWORK_INTERFACE | grep "inet " | awk '{ print $2;exit }' | cut -d/ -f1`
+SS_IPV6_ADDRESS=`ip addr show $SS_NETWORK_INTERFACE | grep "inet6 " | awk '{ print $2;exit }' | cut -d/ -f1`
+SS_HOSTNAME=`hostname -f`
+SS_TLD=`hostname -d`
+# SS_PHP_VERSION=`php -v | grep ^PHP | cut -d' ' -f2`
+# SS_PHP_EXTENSIONS=`php -r "print_r(implode(', ', get_loaded_extensions()));"`
+
+## old ##
+UBUNTU_VERSION=`lsb_release -rs`
+DISK_FREE=`df -k --output=avail "$PWD" | tail -n1`
+NETWORK_INTERFACE=`ip route get 1.1.1.1 | head -n1 | awk '{print $5}'`
+IPV4_ADDRESS=`ip addr show $NETWORK_INTERFACE | grep "inet " | awk '{ print $2;exit }' | cut -d/ -f1`
+IPV6_ADDRESS=`ip addr show $NETWORK_INTERFACE | grep "inet6 " | awk '{ print $2;exit }' | cut -d/ -f1`
+
+## ss-install-wordpress-config variables ##
+TMP_WORDPRESS_CONFIG_PRODUCTION="/tmp/wp-config-production.txt"
+TMP_WORDPRESS_CONFIG_STAGING="/tmp/wp-config-staging.txt"
+TMP_WORDPRESS_CONFIG_DEV="/tmp/wp-config-dev.txt"
+
+####################################################################################################
+#### SS-Functions: Critical Bash Functions #########################################################
+####################################################################################################
+
+## SNIPPET: ss-functions, ss-install
+
+## the below functions are sourced into every SlickStack script to ensure reliability ##
+## this also speeds up processing times by avoiding repeated inline commands ##
+
+## add-apt-repository alias flags ##
+function add-apt-repository {
+    export DEBIAN_FRONTEND=noninteractive
+    export DEBIAN_PRIORITY=critical
+    export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+    command /usr/bin/add-apt-repository --yes "$@"
+}
+
+## apt alias flags ##
+function apt {
+    export DEBIAN_FRONTEND=noninteractive
+    export DEBIAN_PRIORITY=critical
+    export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+    command /usr/bin/apt --yes --quiet --option Dpkg::Options::=--force-confold --option Dpkg::Options::=--force-confdef "$@"
+}
+
+## cp alias flags ##
+function cp {
+    command cp -R -f -d --no-preserve=mode,ownership "$@"
+}
+
+## ln alias flags ##
+function ln {
+    command ln -s -f "$@"
+}
+
+## mkdir alias flags ##
+function mkdir {
+    command mkdir -p "$@"
+}
+
+## mysql alias flags ##
+function mysql {
+    command mysql --user=root --host=localhost --protocol=socket --port=3306 --force "$@"
+}
+
+## mysqldump alias flags ##
+function mysqldump {
+    # /usr/bin/mysqldump
+    command mysqldump --user=$DB_USER --password=$DB_PASSWORD --host=$DB_HOST --protocol=tcp --port=3306 --no-tablespaces --single-transaction --skip-lock-tables --dump-date --force "$@"
+}
+
+## rm alias flags ##
+function rm {
+    command rm -R -f "$@"
+}
+
+## rsync alias flags ##
+function rsync {
+    command rsync -aI --ignore-errors "$@"
+}
+
+## touch alias flags ##
+function touch {
+    command touch -a "$@"
+}
+
+## unzip alias flags ##
+function unzip {
+    command unzip -o "$@"
+}
+
+## wget alias flags ##
+function wget {
+    command wget --quiet --no-check-certificate --no-cache --no-cookies --tries=3 --timeout=15 "$@"
+}
+
+####################################################################################################
+#### SS-Functions: Pretty Colors + Styles For The Shell ############################################
+####################################################################################################
+
+## SNIPPET: ss-functions, ss-install
+
+## these color variables help maintain cleaner and prettier Bash scripts in SlickStack ##
+## we substitute e.g. ${PINK} within any echo line then use ${RESET} to revert ##
+
+## pretty colors ##
+NOCOLOR='\033[0m'
+DARKRED='\033[0;31m'
+LIGHTRED='\033[1;31m'
+ORANGE='\033[0;33m'
+YELLOW='\033[1;33m'
+DARKGREEN='\033[0;32m'
+LIGHTGREEN='\033[1;32m'
+DARKCYAN='\033[0;36m'
+LIGHTCYAN='\033[1;36m'
+DARKBLUE='\033[0;34m'
+LIGHTBLUE='\033[1;34m'
+DARKPURPLE='\033[0;35m'
+LIGHTPURPLE='\033[1;35m'
+
+PURPLE='\033[0;35m'
+
+PINK='\033[1;35m'
+
+DARKGRAY='\033[1;30m'
+LIGHTGRAY='\033[0;37m'
+WHITE='\033[1;37m'
+
+BGBLACK=$(tput setab 0) # black
+BGRED=$(tput setab 1) # red
+BGGREEN=$(tput setab 2) # green
+BGYELLOW=$(tput setab 3) # yellow
+BGBLUE=$(tput setab 4) # blue
+BGPINK=$(tput setab 5) # magenta (pink)
+BGCYAN=$(tput setab 6) # cyan
+BGWHITE=$(tput setab 7) # white
+
+## pretty styles ##
+BOLD=$(tput bold) # bold (strong)
+DIM=$(tput dim) # dim (half-bright)
+NORMAL=$(tput sgr0) # reset all styles (normal)
+RESET=$(tput sgr0) # reset all styles (normal)
+BLINK=$(tput blink) # blink
+UNDERLINE=$(tput smul) # underline
+ENDUNDER=$(tput rmul) # end underline
+REVERSE=$(tput rev) # reverse
+STANDOUT=$(tput smso) # standout (highlight)
+ENDSTAND=$(tput rmso) # end standout
+
+####################################################################################################
+#### SS-Install: Verify Environment Compatibility Before Proceeding ################################
+####################################################################################################
+
+## never run ss-install unless the build version below matches current ss-config version ##
+## in case of emergencies the SlickStack team might purposefully mismatch builds ##
+
+## ensure ss-config (if exists) build matches ss-install ##
+if [[ -f "/var/www/ss-config" ]] && [[ "$SS_BUILD" != "JUL2021E" ]]; then 
+    echo -e "${YELLOW}Exiting ss-install: Please run ss-update-config since your ss-config is outdated and try again... ${NOCOLOR}"
+    exit 1
+fi
+
+## verify optimal Ubuntu version ##
+if [[ "${UBUNTU_VERSION}" != @(20.04|18.04) ]]; then
+    echo -e "${YELLOW}Exiting ss-install: SlickStack is designed for Ubuntu LTS (but this VPS is running ${UBUNTU_VERSION})... ${NOCOLOR}"
+    exit 1
+fi
+
+## ensure at least 5GB free disk space remains ##
+if [[ $DISK_FREE -lt 5242880 ]]; then # 10G = 10485760 / 5GB = 5242880
+    echo -e ""
+    echo -e "${YELLOW}SS-INSTALL: It looks like your server has less than 5GB free space available, please upgrade your server and then run ${BOLD}ss-install${NORMAL} again. ${NOCOLOR}"
+    echo -e ""
+    exit 1
+fi
+
+## ensure not running in docker/lxc/container ##
+if [[ -f /.dockerenv ]] || grep -Eq '(lxc|docker)' /proc/1/cgroup; then 
+    echo -e ""
+    echo -e "${YELLOW}It appears your server is running Docker or another container... but SlickStack requires normal Ubuntu LTS without containers. ${NOCOLOR}"
+    echo -e ""
+    exit 1
+fi
+
+####################################################################################################
+#### SS-Update: Ensure Undefined Options Do Not Exist Before Proceeding ############################
+####################################################################################################
+
+## SNIPPET: ss-install, ss-update
+
+## below snippet will warn you and exit if undefined ss-config options are found to exist ##
+## this way our team can be aware of bugs and avoid implementing unwanted options ##
+
+## warn if placeholders exist ##
+SS_CONFIG_OPTION_PLACEHOLDER="$(grep -c '"@' /var/www/ss-config)"
+if [[ "$SS_CONFIG_OPTION_PLACEHOLDER" -gt 0 ]]; then
+    echo -e "${LIGHTRED}Exiting ss-install: Your ss-config contains "@..." placeholders. Please input values and try again... ${NOCOLOR}"
+    exit 1
+fi
+
+####################################################################################################
+#### SS-Install: Cleanup Temporary Files ###########################################################
+####################################################################################################
+
+## delete tmp files ##
+rm /tmp/ss-config*
+rm /tmp/config*
+
+####################################################################################################
+#### SS-Install: Interactive Bash Setup Wizard (Generate SS-Config) ################################
+####################################################################################################
+
+## this basic wizard will allow you to interactively setup your ss-config file options ##
+## advanced users can setup ss-config before running ss-install to avoid this ##
+
+## retrieve latest ss-config boilerplate (quietly) ##
+wget -qO /tmp/ss-config https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-config-sample.txt
+    
+## check build ver ##
+SS_BUILD_NOW=$(source /tmp/ss-config; echo $SS_BUILD)
+
+## rainbow colors test ##
+WELCOME_RAINBOW="${DARKRED}welcome ${LIGHTRED}to ${ORANGE}the ${YELLOW}magical ${DARKGREEN}world ${LIGHTGREEN}of ${DARKCYAN}ss ${LIGHTCYAN}where ${DARKBLUE}all ${LIGHTBLUE}your ${DARKPURPLE}dreams ${LIGHTPURPLE}come ${LIGHTGRAY}true${NOCOLOR}"
+echo -e ""
+echo -e "$WELCOME_RAINBOW"
+
+## f*ck containers (first things first) ##
+echo -e ""
+echo -e "${LIGHTPURPLE} _____________________________ ${NOCOLOR}"
+echo -e "${LIGHTPURPLE}< screw containers! excelsior > ${NOCOLOR}"
+echo -e "${LIGHTPURPLE} ----------------------------- ${NOCOLOR}"
+echo -e "${LIGHTPURPLE}        \   ^__^ ${NOCOLOR}"
+echo -e "${LIGHTPURPLE}         \  (oo)\_______ ${NOCOLOR}"
+echo -e "${LIGHTPURPLE}            (__)\       )\/\ ${NOCOLOR}"
+echo -e "${LIGHTPURPLE}                ||----w | ${NOCOLOR}"
+echo -e "${LIGHTPURPLE}                ||     || ${NOCOLOR}"
+echo -e ""
+echo -e ""
+
+if [[ ! -f "/var/www/ss-config" ]]; then
+    echo -e "${LIGHTGRAY}SlickStack build  :  ${LIGHTGREEN}$SS_BUILD_NOW${NOCOLOR}"
+    echo -e "${LIGHTGRAY}Hostname (FQDN)   :  ${LIGHTGREEN}$SS_HOSTNAME${NOCOLOR}"
+    echo -e "${LIGHTGRAY}IP Address (IPv4) :  ${LIGHTGREEN}$SS_IPV4_ADDRESS${NOCOLOR}"
+    echo -e "${LIGHTGRAY}IP Address (IPv6) :  ${LIGHTGREEN}$SS_IPV6_ADDRESS${NOCOLOR}"
+    echo -e ""
+    echo -e "${YELLOW}Welcome to SlickStack! It appears that your ss-config file has not been ${NOCOLOR}"
+    echo -e "${YELLOW}setup yet. Please use the wizard to configure required options, or hit ${NOCOLOR}"
+  
+    wait_time=30 # seconds
+    temp_cnt=${wait_time}
+    while [[ ${temp_cnt} -gt 0 ]];
+    do
+        printf "${YELLOW}\rCtrl+C to cancel wizard and configure ss-config manually: ${LIGHTGREEN}%2d ${NOCOLOR}" ${temp_cnt}
+        sleep 1
+        ((temp_cnt--))
+    done
+    echo -e ""
+    echo -e ""
+    echo -e "${LIGHTPURPLE}###########################################################################${NOCOLOR}"
+    echo -e "${LIGHTPURPLE}#### SlickStack Interactive Setup Wizard (SS-Config) ######################${NOCOLOR}"
+    echo -e "${LIGHTPURPLE}###########################################################################${NOCOLOR}"
+    echo -e ""
+    
+    ## replace all password fields with random strings ##
+    sed -i "s/@ROOT_PASSWORD/$(openssl rand -hex 12)/g" /tmp/ss-config
+    sed -i "s/@DB_PASSWORD_ROOT/$(openssl rand -hex 12)/g" /tmp/ss-config
+    
+    ## PROMPT: choose sudo username (default = batman) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose sudo username (for SSH): "$NORMAL)" -e -i 'batman' ss_var_sudo_user || ss_var_sudo_user=batman
+    sed -i "s/@SUDO_USER/$ss_var_sudo_user/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose sudo password (default = random) ##
+    sudopass_random=$(openssl rand -hex 12)
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose sudo password (should be strong): "$NORMAL)" -e -i ${sudopass_random} ss_var_sudo_password || ss_var_sudo_password=${sudopass_random}
+    sed -i "s/@SUDO_PASSWORD/$ss_var_sudo_password/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose SSH port number (default = 22) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose SSH port (avoid 22 if possible): "$NORMAL)" -e -i '22' ss_var_ssh_port || ss_var_ssh_port=22
+    sed -i "s/@SSH_PORT/$ss_var_ssh_port/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: enable SSH keys (default = false) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Enable SSH keys (advanced users only): "$NORMAL)" -e -i 'false' ss_var_ssh_keys || ss_var_ssh_keys=false
+    sed -i "s/@SSH_KEYS/$ss_var_ssh_keys/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose SFTP username (default = robin) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose SFTP username (limited access): "$NORMAL)" -e -i 'robin' ss_var_sftp_user || ss_var_sftp_user=robin
+    sed -i "s/@SFTP_USER/$ss_var_sftp_user/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose SFTP password (default = random) ##
+    sftp_pass_random=$(openssl rand -hex 12)
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose SFTP password (should be strong): "$NORMAL)" -e -i ${sftp_pass_random} ss_var_sftp_password || ss_var_sftp_password=${sftp_pass_random}
+    sed -i "s/@SFTP_PASSWORD/$ss_var_sftp_password/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose app (default = wordpress) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose app (only wordpress supported currently): "$NORMAL)" -e -i 'wordpress' ss_var_app_name || ss_var_app_name=wordpress
+    sed -i "s/@SS_APP/$ss_var_app_name/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: using a remote database (default = wordpress) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Are you using a remote database: "$NORMAL)" -e -i 'false' ss_var_database_remote || ss_var_database_remote=false
+    sed -i "s/@SS_DATABASE_REMOTE/$ss_var_database_remote/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose database name (default = wordpress) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose database name (single database): "$NORMAL)" -e -i 'wordpress' ss_var_db_name || ss_var_db_name=wordpress
+    sed -i "s/@DB_NAME/$ss_var_db_name/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose database user (default = robin) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose database user (non-root user): "$NORMAL)" -e -i 'robin' ss_var_db_user || ss_var_db_user=robin
+    sed -i "s/@DB_USER/$ss_var_db_user/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose database user password (default = random) ##
+    db_pass_random=$(openssl rand -hex 12)
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose database user password: "$NORMAL)" -e -i ${db_pass_random} ss_var_db_password || ss_var_db_password=${db_pass_random}
+    sed -i "s/@DB_PASSWORD_USER/$ss_var_db_password/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose database host ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose database host (IP address): "$NORMAL)" -e -i '127.0.0.1' ss_var_db_host || ss_var_db_host=127.0.0.1
+    sed -i "s/@DB_HOST/$ss_var_db_host/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose database prefix ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose database table prefix: "$NORMAL)" -e -i 'wp_' ss_var_db_prefix || ss_var_db_prefix=wp_
+    sed -i "s/@DB_PREFIX/$ss_var_db_prefix/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose site TLD (otherwise example.com) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose site TLD (subdomains not allowed): "$NORMAL)" -e -i "$SS_TLD" ss_var_site_tld || ss_var_site_tld="$SS_TLD"
+    sed -i "s/@SITE_TLD/$ss_var_site_tld/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose site domain (otherwise www.example.com) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose site domain (subdirectories not allowed): "$NORMAL)" -e -i "$SS_HOSTNAME" ss_var_site_domain || ss_var_site_domain="$SS_HOSTNAME"
+    sed -i "s/@SITE_DOMAIN/$ss_var_site_domain/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: enable noindex server (default = false) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Enable site noindexing (block robots): "$NORMAL)" -e -i 'false' ss_var_site_noindex || ss_var_site_noindex=false
+    sed -i "s/@SITE_NOINDEX/$ss_var_site_noindex/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: which SSL do you want ##
+    read -t 300 -p "$(echo -e $PINK"Which SSL cert do you want to use: "$NORMAL)" -e -i 'openssl' ss_var_ssl_type || ss_var_ssl_type=openssl
+    sed -i "s/@SSL_TYPE/$ss_var_ssl_type/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## Multisite not supported yet ##
+    ## PROMPT: enable WP multisite (otherwise disabled) ##
+    # read -p 'Enable WP multisite (no): ' ss_var_wp_multisite
+    
+    ## PROMPT: disable WP multisite subdomains (otherwise enabled) ##
+    # read -p 'Enable WP multisite subdomains (yes): ' ss_var_wp_multisite_subdomains
+    
+    ## PROMPT: enable WP multisite domain mapping (otherwise disabled) ##
+    # read -p 'Enable WP multisite domain mapping (no): ' ss_var_wp_multisite_domain_mapping
+    
+    ## PROMPT: choose Cloudflare API key (otherwise 123456789) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose Cloudflare API key (global key): "$NORMAL)" -e -i '123456789' ss_var_cloudflare_api_key || ss_var_cloudflare_api_key=123456789
+    sed -i "s/@CLOUDFLARE_API_KEY/$ss_var_cloudflare_api_key/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: choose Cloudflare API email (otherwise user@example.com) ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Choose Cloudflare API email (account profile): "$NORMAL)" -e -i 'user@example.com' ss_var_cloudflare_api_email || ss_var_cloudflare_api_email=user@example.com
+    sed -i "s/@CLOUDFLARE_API_EMAIL/$ss_var_cloudflare_api_email/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: enable native staging site features ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Enable native staging site: "$NORMAL)" -e -i 'true' ss_var_staging_site || ss_var_staging_site=true
+    sed -i "s/@STAGING_SITE_STATUS/$ss_var_staging_site/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## PROMPT: enable native dev site features ##
+    read -t 300 -p "$(echo -e $LIGHTPURPLE"Enable native dev site: "$NORMAL)" -e -i 'true' ss_var_dev_site || ss_var_dev_site=true
+    sed -i "s/@DEV_SITE_STATUS/$ss_var_dev_site/g" /tmp/ss-config
+    
+    ## new line ##
+    printf "\n"
+    
+    ## copy files to their destinations ##
+    mkdir /var/www
+    cp /tmp/ss-config /var/www/ss-config
+    
+####################################################################################################
+#### SS-Install: Message (Last Chance To Exit) #####################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## force exit if SSH keys chosen ##
+SSHKEYS_CHOSEN=$(source /var/www/ss-config; echo $SSH_KEYS)
+if [[ "$SSHKEYS_CHOSEN" == "true" ]] && [[ ! -f "/var/www/auth/id_rsa.pub" ]]; then
+    echo -e "${YELLOW}Exiting ss-install: Please upload your /var/www/auth/id_rsa.pub file before proceeding... ${NOCOLOR}"
+    echo -e "${YELLOW}Alternatively SlickStack will create a new key pair for you (just run ss-install again now)... ${NOCOLOR}"
+fi
+
+## force exit if thirdparty SSL chosen ##
+THIRDPARTY_CHOSEN=$(source /var/www/ss-config; echo $SSL_TYPE)
+if [[ "$THIRDPARTY_CHOSEN" == "thirdparty" ]] && [[ ! -f "/var/www/certs/thirdparty.pem" || ! -f "/var/www/certs/keys/thirdparty.key" ]]; then
+    echo -e "${YELLOW}Exiting ss-install: Since you chose thirdparty SSL please upload your cert/key before proceeding... ${NOCOLOR}"
+fi
+
+    ## echo message ##
+    echo -e "${YELLOW}Your /var/www/ss-config file is now setup, yay! Ctrl+C to exit now if you  ${NOCOLOR}"
+
+    WAIT_TIME_LAST_CHANCE="15" # seconds
+    WAIT_TIME_LAST_CHANCE_TMP="${WAIT_TIME_LAST_CHANCE}"
+    while [[ ${WAIT_TIME_LAST_CHANCE_TMP} -gt 0 ]];
+    do
+        printf "${YELLOW}\rwant to review all options before proceeding, otherwise wait... ${LIGHTGREEN}%2d ${NOCOLOR}" ${WAIT_TIME_LAST_CHANCE_TMP}
+        sleep 1
+        ((WAIT_TIME_LAST_CHANCE_TMP--))
+    done
+
+    echo -e ""
+    
+####################################################################################################
+#### SS-Install: Welcome Back (If SS-Config Exists) ################################################
+####################################################################################################
+
+else
+    echo -e "${LIGHTGRAY}SlickStack build   :  ${LIGHTGREEN}$SS_BUILD_NOW${NOCOLOR}"
+    echo -e "${LIGHTGRAY}Hostname (FQDN)    :  ${LIGHTGREEN}$SS_HOSTNAME${NOCOLOR}"
+    echo -e "${LIGHTGRAY}IP Address (IPv4)  :  ${LIGHTGREEN}$SS_IPV4_ADDRESS${NOCOLOR}"
+    echo -e "${LIGHTGRAY}IP Address (IPv6)  :  ${LIGHTGREEN}$SS_IPV6_ADDRESS${NOCOLOR}"
+    echo -e ""
+    echo -e "${PURPLE}Running ss-install: An ss-config file already exists so we will proceed using existing settings... ${NOCOLOR}"
+    sleep 10s
+fi
+
+####################################################################################################
+#### SS-Install: Source SS-Config (After Setup Wizard Complete) ####################################
+####################################################################################################
+
+## here we must source ss-config again after the setup wizard has completed generation ##
+## this is different than the conditional sourcing at the top of this script ##
+
+## include SlickStack configuration ##
+source /var/www/ss-config
+
+####################################################################################################
+#### SS-Install: Ensure Chosen Site Domain Is Not Sub-Subdomain (Unsupported) ######################
+####################################################################################################
+
+## for compatibility and stability reasons SlickStack does not support sub-subdomains ##
+## this ensures that your SSL and Cloudflare especially will function properly ##
+
+## calculate how many dots in chosen site domain ##
+CALC_DOMAIN=${SITE_DOMAIN//$SITE_TLD/}
+CALC_DOMAIN_SUB=$(echo "$CALC_DOMAIN" | grep -o "\." | wc -l)
+
+## exit if the local domain (besides TLD) contains more than one dot ##
+if [[ $CALC_DOMAIN_SUB -gt 1 ]]; then 
+    echo -e ""
+    echo -e "${YELLOW}It appears your SITE_DOMAIN value is a sub-subdomain or is otherwise not ${NOCOLOR}"
+    echo -e "${YELLOW}compatible with SlickStack. Please edit ss-config and try again. ${NOCOLOR}"
+    echo -e ""
+    exit 1
+fi
+
+####################################################################################################
+#### SS-Install: Retrieve Latest SS Core Cron Jobs + SS Core Bash Scripts ##########################
+####################################################################################################
+
+## now that ss-config is ready we must retrieve the latest core cron jobs and scripts ##
+
+
+## download latest versions ##
+wget -O /tmp/ss-functions https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-functions.txt
+
+wget -O /tmp/ss-check https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-check.txt
+
+## copy files to their destinations ##
+cp /tmp/ss-functions /var/www/ss-functions
+cp /tmp/ss-check /var/www/ss-check
+
+## reset permissions ##
+chown root:root /var/www/ss* ## must be root:root
+chmod 0700 /var/www/ss* ## 0700 means root can execute
+
+## run scripts ##
+source /var/www/ss-check
+
+
+source /var/www/ss-functions
+
+####################################################################################################
+#### SS-Install: Set Confold As Ubuntu Dpkg Default ################################################
+####################################################################################################
+
+## the first time you run ss-install we want to ensure that confold is dpkg default ##
+## this helps to avoid overwriting module config files that SlickStack uses ##
+
+## set confold as dpkg default (fail-safe in case apt upgrade called directly) ##
+DEBIAN_FRONTEND=noninteractive dpkg --configure -a --force-confold
+
+## update Ubuntu repo cache ##
+apt update
+
+## upgrade installed Ubuntu packages (LEMP modules) + but now Linux kernel (full-upgrade) ##
+apt upgrade
+
+####################################################################################################
+#### SS-Install: Install Ubuntu Features ###########################################################
+####################################################################################################
+
+## first we need to setup all users and passwords for Ubuntu and set sudo permissions ##
+## this process will also set the default SSH port and disable root SSH logins ##
+
+## run ss-install-ubuntu-users (includes ss-install-ubuntu-aliases) ##
+source /var/www/ss-install-ubuntu-users
+
+## SlickStack aims to emphasize traditional bash scripts but we still support aliases ##
+## in most cases using aliases are not necessary but this will evolve over time ##
+
+## run ss-install-ubuntu-bash ##
+source /var/www/ss-install-ubuntu-bash
+
+## run ss-install-ubuntu-ssh ##
+source /var/www/ss-install-ubuntu-ssh
+
+## cron should be installed by default on Ubuntu but this script will install otherwise ##
+## it will also install root crontab and core cron jobs from SlickStack mirrors ##
+
+## run ss-install-ubuntu-crontab ##
+source "$PATH_SS_INSTALL_UBUNTU_CRONTAB"
+
+## run ss-install-ubuntu-swapfile ##
+source "$PATH_SS_INSTALL_UBUNTU_SWAPFILE"
+
+## run ss-install-ubuntu-utils ##
+source "$PATH_SS_INSTALL_UBUNTU_UTILS"
+
+## we save this for near last just in case the kernel gets messed up and requires fixing ##
+## in SlickStack the kernel is modified to pretty much uncap all limitations ##
+
+## run ss-install-ubuntu-kernel ##
+source "$PATH_SS_INSTALL_UBUNTU_KERNEL"
+
+####################################################################################################
+#### SS-Install: Install PHP-FPM ###################################################################
+####################################################################################################
+
+## here we install the PHP-FPM module which includes OPcache for better performance ##
+## FastCGI is configured to interface with Nginx using TCP (127.0.0.1:9000) ##
+
+## run ss-install-php-packages ##
+source "$PATH_SS_INSTALL_PHP_PACKAGES"
+
+## run ss-install-php-config ##
+source "$PATH_SS_INSTALL_PHP_CONFIG"
+
+####################################################################################################
+#### SS-Install: Install Nginx (Server) + SSL Certificates #########################################
+####################################################################################################
+
+## the Nginx installer includes OpenSSL and Let's Encrypt configuration to avoid errors ##
+## default settings allow for extremely high-traffic so Cloudflare is recommended ##
+
+## run ss-install-nginx-core ##
+source "$PATH_SS_INSTALL_NGINX_PACKAGES"
+
+## run ss-install-nginx-config ##
+source "$PATH_SS_INSTALL_NGINX_CONFIG"
+
+####################################################################################################
+#### SS-Install: Enable Maintenance Mode ###########################################################
+####################################################################################################
+
+## run ss-maintenance-enable ##
+source "$PATH_SS_MAINTENANCE_ENABLE"
+
+####################################################################################################
+#### SS-Install: Install MySQL #####################################################################
+####################################################################################################
+
+## here we install MySQL server (no client) and users based on the ss-config settings ##
+## root@localhost will use sockets and PHP apps will connect via 127.0.0.1 ##
+
+## run ss-install-mysql-packages ##
+source "$PATH_SS_INSTALL_MYSQL_PACKAGES"
+
+## run ss-install-mysql-config ##
+source "$PATH_SS_INSTALL_MYSQL_CONFIG"
+
+####################################################################################################
+#### SS-Install: Install Redis (Object Cache) ######################################################
+####################################################################################################
+
+## Redis is only installed to enable our default (optional) Object Cache (MU plugin) ##
+## full page caching is provided solely by Nginx FastCGI and not by Redis ##
+
+## run ss-install-redis-packages ##
+source "$PATH_SS_INSTALL_REDIS_PACKAGES"
+
+## run ss-install-redis-config ##
+source "$PATH_SS_INSTALL_REDIS_CONFIG"
+
+####################################################################################################
+#### SS-Install: Install Adminer (i.e. phpMyAdmin) #################################################
+####################################################################################################
+
+## should be installed after PHP-FPM and Nginx modules to ensure seamless installation ##
+## Adminer (similar to phpMyAdmin) can be publicly accessed at the /adminer URI ##
+
+## run ss-install-adminer ##
+source "$PATH_SS_INSTALL_ADMINER"
+ 
+####################################################################################################
+#### SS-Install: Install CMS (WordPress, PrestaShop, MediaWiki, Etc) ###############################
+####################################################################################################
+
+## SNIPPET: ss-install, ss-update
+
+## this snippet fetches the latest stable version of WordPress from SlickStack mirrors ##
+## major CMS releases (unpatched) are never considered stable for our purposes ##
+    
+if [[ "$SS_APP" == "wordpress" || -z "$SS_APP"  ]]; then
+
+    ## run ss-install-wordpress-core ##
+    source "$PATH_SS_INSTALL_WORDPRESS_CORE"
+
+    ## here we retrieve latest wp-config.php boilerplate and customize per ss-config settings ##
+    ## you should never make changes directly to wp-config.php in SlickStack servers ##
+
+    ## run ss-install-wordpress-config ##
+    source "$PATH_SS_INSTALL_WORDPRESS_CONFIG"
+
+    ## this will install the designated MU plugins and also Custom Functions and Object Cache ##
+    ## with a few exceptions these can all be customized using ss-config settings ##
+
+    ## run ss-install-wordpress-mu-plugins ##
+    source "$PATH_SS_INSTALL_WORDPRESS_MU_PLUGINS"
+    
+    ## run ss-install-wordpress-cli ##
+    source "$PATH_SS_INSTALL_WORDPRESS_CLI"
+
+fi
+
+## this snippet fetches the latest stable version of PrestaShop from SlickStack mirrors ##
+## major CMS releases (unpatched) are never considered stable for our purposes ##
+
+if [[ "$SS_APP" == "prestashop" ]]; then
+
+    ## run ss-install-prestashop-core ##
+    source "$PATH_SS_INSTALL_PRESTASHOP_CORE"
+    
+    ## run ss-install-prestashop-config ##
+    source "$PATH_SS_INSTALL_PRESTASHOP_CONFIG"
+    
+fi
+
+## this snippet fetches the latest stable version of MediaWiki from SlickStack mirrors ##
+## major CMS releases (unpatched) are never considered stable for our purposes ##
+
+if [[ "$SS_APP" == "mediawiki" ]]; then
+
+    ## run ss-install-prestashop-core ##
+    source "$PATH_SS_INSTALL_MEDIAWIKI_CORE"
+    
+    ## run ss-install-prestashop-config ##
+    source "$PATH_SS_INSTALL_MEDIAWIKI_CONFIG"
+    
+fi
+
+####################################################################################################
+#### SS-Install: Install ClamAV (Antivirus) ########################################################
+####################################################################################################
+
+## this will install ClamAV for occassional malware logging: /var/www/logs/clamav.log ##
+## keep in mind that infected files are not automatically cleaned or deleted ##
+
+## run ss-install-clamav ##
+source "$PATH_SS_INSTALL_CLAMAV"
+
+####################################################################################################
+#### SS-Install: Install UFW Firewall ##############################################################
+####################################################################################################
+
+## here we install and configure the very simple UFW Firewall that Ubuntu maintains ##
+## only ports 80, 443, and your designated SSH port (6969) will be allowed ##
+
+## run ss-install-ufw-packages ##
+source "$PATH_SS_INSTALL_UFW_PACKAGES"
+
+## run ss-install-ufw-config ##
+source "$PATH_SS_INSTALL_UFW_CONFIG"
+
+####################################################################################################
+#### SS-Install: Reset All SlickStack Logs To Null #################################################
+####################################################################################################
+
+## run ss-reset-logs ##
+source "$PATH_SS_EMPTY_LOGS"
+
+####################################################################################################
+#### SS-Install: Reset Permissions (All Permissions) ###############################################
+####################################################################################################
+
+## intuitively resets all file and user permissions across the entire SlickStack server ##
+## depending on the CMS installed it will also reset those permissions as well ##
+
+## run ss-perms ##
+source /var/www/ss-perms
+
+####################################################################################################
+#### SS-Install: Disable Maintenance Mode ##########################################################
+####################################################################################################
+
+## run ss-maintenance-disable ##
+source "$PATH_SS_MAINTENANCE_DISABLE"
+
+####################################################################################################
+#### SS-Install: Clear Caches (All Caches) #########################################################
+####################################################################################################
+
+## this clears all caches i.e. Nginx, OPcache, Redis object cache, and WP transients ##
+## we run this after ss-perms and before ss-restart-modules to avoid conflicts ##
+
+## run ss-purge-nginx ##
+source "$PATH_SS_PURGE_NGINX"
+
+## run ss-purge-opcache ##
+source "$PATH_SS_PURGE_OPCACHE"
+
+## run ss-purge-redis ##
+source "$PATH_SS_PURGE_REDIS"
+
+## run ss-purge-transients ##
+source "$PATH_SS_PURGE_TRANSIENTS"
+
+####################################################################################################
+#### SS-Install: Restart Modules (All Modules) #####################################################
+####################################################################################################
+
+## this script is using init.d instead of systemd shortcuts to allow for absolute paths ##
+## we are looking into including other snippets here such as unmasking (etc) ##
+
+## run ss-restart-php ##
+source "$PATH_SS_RESTART_PHP"
+
+## run ss-restart-nginx ##
+source "$PATH_SS_RESTART_NGINX"
+
+## run ss-restart-mysql ##
+source "$PATH_SS_RESTART_MYSQL"
+
+## run ss-restart-redis ##
+source "$PATH_SS_RESTART_REDIS"
+
+## run ss-restart-ufw ##
+source "$PATH_SS_RESTART_UFW"
+
+####################################################################################################
+#### SS-Install: Display SlickStack Configuration Overview #########################################
+####################################################################################################
+
+## the shell will echo the most important ss-config settings (and beyond) currently used ##
+## this allows you to easily copy/paste for your records or for your clients ##
+
+## run ss-stack-overview ##
+source "$PATH_SS_STACK_OVERVIEW"
+
+####################################################################################################
+#### SS-Install: MESSAGE (End) #####################################################################
+####################################################################################################
+
+if [[ "$SSH_KEYS" == "true" ]]; then 
+    echo -e ""
+    echo -e "${YELLOW}Since you enabled SSH keys be sure to upload your public key to: /var/www/meta/.ssh/authorized_keys${NOCOLOR}"
+    echo -e ""
+fi
+    
+## confirm installation complete ##
+echo -e ""
+echo -e "${YELLOW}SlickStack install complete! Please note the sudo user and password above ${NOCOLOR}"
+echo -e "${YELLOW}to avoid being locked out of your new server (the root user is disabled). ${NOCOLOR}"
+echo -e "${YELLOW}Also, be sure to enable [Full SSL] mode in CloudFlare to avoid redirect ${NOCOLOR}"
+echo -e "${YELLOW}loops (we do not recommend enabling HSTS, however). For an extra boost, ${NOCOLOR}"
+echo -e "${YELLOW}use CloudFlare Page Rules to [cache all] for /wp-content/* requests, and ${NOCOLOR}"
+echo -e "${YELLOW}to force-redirect (non)www domain requests too. Lastly be sure to set TLS ${NOCOLOR}"
+echo -e "${YELLOW}version to 1.2+ in Cloudflare for top SSL Labs score. Cheers! ${NOCOLOR}"
+echo -e ""
+
+####################################################################################################
+#### SS-Install: Cleanup Temporary Files ###########################################################
+####################################################################################################
+
+## delete tmp files ##
+rm /tmp/config
+rm /tmp/ss
+
+####################################################################################################
+#### SS-Install: Touch Timestamp File (End Script) #################################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_INSTALL"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: http://wproller.com ##
+## Ref: https://github.com/bjornjohansen/deploy-wp-on-vps/blob/master/deploy.sh ##
+## Ref: https://github.com/sm0k3net/Useful-Scripts/blob/master/wordpress.sh ##
+## Ref: https://github.com/techandme/wordpress-vm ##
+## Ref: https://github.com/QROkes/webinoly ##
+## Ref: https://github.com/WordOps/WordOps ##
+## Ref: https://www.isicca.com/en/lemp-howto-install-nginx-php7-mariadb/ ##
+## Ref: https://gist.github.com/FeChagas/54b0cdf354b197dc8e417357d7687e8b ##
+## Ref: https://github.com/GeekPress/WP-Quick-Install ##
+## Ref: https://github.com/bajpangosh/High-Traffic-wordpress-server-configuration ##
+## Ref: https://gist.github.com/nickfox-taterli/2c283d73ba817392fb0f9f15d9cfa514 ##
+## Ref: https://gist.github.com/beardedinbinary/79d7ad34f9980f0a4c23 ##
+## Ref: https://www.linuxbabe.com/security/letsencrypt-webroot-tls-certificate
+## Ref: https://stackoverflow.com/questions/49668542/create-a-script-that-adds-lines-of-code-to-bashrc-then-reloads-the-terminal
+## Ref: https://peteris.rocks/blog/unattended-installation-of-wordpress-on-ubuntu-server/
+## Ref: https://serverfault.com/questions/783527/non-interactive-silent-install-of-mysql-5-7-on-ubuntu-16-04-lts/830352#830352
+## Ref: https://www.percona.com/blog/2016/10/18/upgrading-to-mysql-5-7-beware-of-the-new-strict-mode/
+## Ref: https://stackoverflow.com/questions/3601515/how-to-check-if-a-variable-is-set-in-bash
+## Ref: https://serverfault.com/questions/773964/calculating-the-percentage-of-the-total-available-memory-on-linux-as-an-integer
+## Ref: https://stackoverflow.com/questions/29271593/bash-check-for-amount-of-memory-installed-on-a-system-as-sanity-check
+## Ref: https://stackoverflow.com/questions/50177216/how-to-grant-all-privileges-to-root-user-in-mysql-8-0
+## Ref: https://stackoverflow.com/questions/28118296/bash-script-is-super-slow
+## Ref: https://stackoverflow.com/questions/15445361/speeding-up-bash-scripts
+## Ref: https://unix.stackexchange.com/questions/67057/bash-script-optimization-of-processing-speed
+## Ref: https://unix.stackexchange.com/questions/313256/why-write-an-entire-bash-script-in-functions
+## Ref: http://nginx.org/en/linux_packages.html
+## Ref: https://www.digitalocean.com/community/questions/nginx-stable-or-mainline-for-production-server
+## Ref: https://precisionsec.com/changing-the-wordpress-site-url-using-the-mysql-command-line/
+## Ref: https://magc.co/box/notes/change-wp-urls-mysql/
+## Ref: https://wordpress.stackexchange.com/questions/281814/wordpress-multisite-redirecting-to-wp-signup-php
+## Ref: https://wordpress.stackexchange.com/questions/165507/site-redirecting-to-wp-signup-php
+## Ref: https://askubuntu.com/questions/86849/how-to-unzip-a-zip-file-from-the-terminal
+## Ref: https://www.computerhope.com/unix/rsync.htm
+## Ref: https://lowendbox.com/blog/wordpress-cheap-vps-lowendscript/
+## Ref: https://unix.stackexchange.com/questions/67057/bash-script-optimization-of-processing-speed
+## Ref: http://www.los-gatos.ca.us/davidbu/faster_sh.html
+## Ref: https://blog.eduonix.com/shell-scripting/learn-how-to-write-interactive-shell-scripts/
+## Ref: https://www.stefanjudis.com/today-i-learned/how-to-add-interactive-questions-to-bash-scripts/
+## Ref: https://askubuntu.com/questions/998640/bash-interactive-script
+## Ref: https://ryanstutorials.net/bash-scripting-tutorial/bash-input.php
+## Ref: http://www.linfo.org/clear.html
+## Ref: https://gist.github.com/jonsuh/3c89c004888dfc7352be
+## Ref: https://stackoverflow.com/questions/2924697/how-does-one-output-bold-text-in-bash/2924755
+## Ref: https://medium.com/@jasonrigden/cowsay-is-the-most-important-unix-like-command-ever-35abdbc22b7f
+## Ref: https://stackoverflow.com/questions/37052899/what-is-the-preferred-method-to-echo-a-blank-line-in-a-shell-script
+## Ref: https://tldp.org/LDP/abs/html/options.html
+## Ref: https://fernandobasso.dev/shell/shell-script-input-default-values.html
+## Ref: https://stackoverflow.com/questions/10735574/include-source-script-if-it-exists-in-bash
+## Ref: https://scripter.co/count-down-timer-in-shell/
+## Ref: https://stackoverflow.com/questions/4332478/read-the-current-text-color-in-a-xterm/4332530#4332530
+## Ref: https://stackoverflow.com/questions/24998434/read-command-display-the-prompt-in-color-or-enable-interpretation-of-backslas
+## Ref: https://stackoverflow.com/questions/714915/using-the-passwd-command-from-within-a-shell-script/715802#comment52196688_19745733
+## Ref: https://askubuntu.com/questions/1214103/how-to-automate-changing-old-password
+## Ref: https://unix.stackexchange.com/questions/223965/i-cant-change-users-passwd-on-ubuntu
+## Ref: https://www.tecmint.com/fix-passwd-authentication-token-manipulation-error-in-linux/
+## Ref: https://stackoverflow.com/questions/4332478/read-the-current-text-color-in-a-xterm/4332530#4332530
+## Ref: https://medium.com/@smohajer85/bash-scripting-tutorial-part-11-8ce0c17b01c1
+## Ref: https://linuxhint.com/tput-printf-and-shell-expansions-how-to-create-awesome-outputs-with-bash-scripts/
+## Ref: https://stackoverflow.com/questions/8467424/echo-newline-in-bash-prints-literal-n
+## Ref: https://askubuntu.com/questions/420784/what-do-the-disabled-login-and-gecos-options-of-adduser-command-stand
+## Ref: https://stackoverflow.com/questions/55822739/does-echo-userpass-usr-sbin-chpasswd-override-the-root-password
+## Ref: https://stackoverflow.com/questions/8110530/check-free-disk-space-for-current-partition-in-bash
+## Ref: https://unix.stackexchange.com/questions/14961/how-to-find-out-which-interface-am-i-using-for-connecting-to-the-internet
+## Ref: https://unix.stackexchange.com/questions/297139/sourcing-a-file-multiple-times-in-a-bash-script
+## Ref: https://stackoverflow.com/questions/23513045/how-to-check-if-a-process-is-running-inside-docker-container
+## Ref: https://stackoverflow.com/questions/20010199/how-to-determine-if-a-process-runs-inside-lxc-docker
+## Ref: https://unix.stackexchange.com/questions/343942/shell-check-if-docker-container-is-existing
+## Ref: https://stackoverflow.com/questions/20406134/read-a-bash-variable-assignment-from-other-file
+## Ref: https://unix.stackexchange.com/questions/311758/remove-specific-word-in-variable
+## Ref: https://stackoverflow.com/questions/13210880/replace-one-substring-for-another-string-in-shell-script
+## Ref: https://stackoverflow.com/questions/11953185/counting-the-number-of-dots-in-a-string
+## Ref: https://stackoverflow.com/questions/21157435/how-can-i-compare-a-string-to-multiple-correct-values-in-bash
+
+## SS_EOF

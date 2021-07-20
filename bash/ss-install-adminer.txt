@@ -1,0 +1,114 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-install-adminer.txt #############################
+#### path: /var/www/ss-install-adminer #############################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the entire Adminer module for SlickStack servers (idempotent) #############
+#### module version: Adminer 4.8.1 #################################################################
+#### sourced by: ss-install ########################################################################
+#### bash aliases: ss install adminer, ss install phpmyadmin #######################################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### TABLE OF CONTENTS #############################################################################
+####################################################################################################
+
+## A. Message (Begin Script)
+## B. Cleanup Temporary Files
+## C. Install Adminer (phpMyAdmin)
+## D. Reset Permissions (Adminer)
+## E. Cleanup Temporary Files
+## F. Touch Timestamp File (End Script)
+
+####################################################################################################
+#### A. SS-Install-Adminer: Message (Begin Script) #################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-install-adminer: Reinstalls the entire Adminer module for SlickStack servers (idempotent)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### B. SS-Install-Adminer: Cleanup Temporary Files ################################################
+####################################################################################################
+
+## delete tmp files ##
+rm "$TMP_ADMINER_PHP"
+
+####################################################################################################
+#### C. SS-Install-Adminer: Install Adminer (phpMyAdmin) ###########################################
+####################################################################################################
+
+## here we retrieve the latest version of adminer.php from our mirrors and install it ##
+## note that adminer.php cannot be converted to UTF-8 or else it will break ##
+
+## download latest versions ##
+wget -O "$TMP_ADMINER_PHP" "$MIRROR_ADMINER_PHP"
+
+## validate temp adminer.php then install ##
+VALIDATE_TMP_ADMINER_PHP=$(grep 'Jakub Vrana' "$TMP_ADMINER_PHP")
+if [[ -n "$VALIDATE_TMP_ADMINER_PHP" ]]; then
+    cp "$TMP_ADMINER_PHP" "$PATH_ADMINER_PHP"
+else
+    rm "$TMP_ADMINER_PHP"
+    ss_wget_slow -O "$TMP_ADMINER_PHP" "$MIRROR2_ADMINER_PHP"
+    cp "$TMP_ADMINER_PHP" "$PATH_ADMINER_PHP"
+fi
+
+## validate path adminer.php and reinstall if needed ##
+VALIDATE_PATH_ADMINER_PHP=$(grep 'Jakub Vrana' "$PATH_ADMINER_PHP")
+if [[ -z "$VALIDATE_PATH_ADMINER_PHP" ]]; then
+    rm "$TMP_ADMINER_PHP"
+    ss_wget_slow -O "$TMP_ADMINER_PHP" "$MIRROR_ADMINER_PHP"
+    cp "$TMP_ADMINER_PHP" "$PATH_ADMINER_PHP"
+fi
+
+####################################################################################################
+#### D. SS-Install-Adminer: Reset Permissions (Adminer) ############################################
+####################################################################################################
+
+## run ss-perms-adminer ##
+source "$PATH_SS_PERMS_ADMINER"
+
+####################################################################################################
+#### E. SS-Install-Adminer: Cleanup Temporary Files ################################################
+####################################################################################################
+
+## delete tmp files ##
+rm "$TMP_ADMINER_PHP"
+
+####################################################################################################
+#### F. SS-Install-Adminer: Touch Timestamp File (End Script) ######################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_INSTALL_ADMINER"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://sourceforge.net/p/adminer/bugs-and-features/630/
+## Ref: https://github.com/littlebizzy/slickstack/issues/91
+
+## SS_EOF

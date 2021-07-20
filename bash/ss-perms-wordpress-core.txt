@@ -1,0 +1,101 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-wordpress-core.txt ########################
+#### path: /var/www/ss-perms-wordpress-core ########################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets file and user permissions for WordPress (CMS) core files and folders ##########
+#### module version: WordPress 5.5.x ###############################################################
+#### sourced by: ss-perms, ss-install-wordpress-core ###############################################
+#### bash aliases: ss perms wordpress core, ss perms wp core #######################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-WordPress-Core: Message (Begin Script) ###############################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-wordpress-core: Resets file and user permissions for WordPress (CMS) core files and folders... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-WordPress-Core: Reset Permissions (WordPress Core) ###################################
+####################################################################################################
+
+## here we briefly reset permissions for WordPress Core files only to avoid errors etc ##
+## keep in mind that non-WordPress Core files are not affected by this snippet ##
+
+## all environments ##
+chown -R $SFTP_USER:wordpress /var/www/html
+chmod 0775 /var/www/html ## 0775 (0755 not enough)
+find /var/www/html/ -type d -exec chmod 0775 {} \; ## 0775 (0755 not enough)
+find /var/www/html/ -type f -exec chmod 0664 {} \; ## 0664 (0644 not enough)
+
+## production ##
+mkdir /var/www/html/wp-content
+mkdir /var/www/html/wp-content/temp
+mkdir /var/www/html/wp-content/uploads
+mkdir /var/www/html/wp-content/upgrade
+mkdir /var/www/html/wp-content/languages
+mkdir /var/www/html/wp-content/mu-plugins
+chown -R www-data:wordpress /var/www/html/wp-content/temp
+chown -R www-data:wordpress /var/www/html/wp-content/upgrade
+chown www-data:wordpress /var/www/html/wp-config.php
+chmod 0440 /var/www/html/wp-config.php ## 0440 probably better (0660 not needed as wp-config restricted in SlickStack and 0640 either)
+
+
+## staging ##
+if [[ "$STAGING_SITE" != "false" ]]; then 
+    mkdir /var/www/html/staging
+    mkdir /var/www/html/staging/wp-content/temp
+    mkdir /var/www/html/staging/wp-content/uploads
+    mkdir /var/www/html/staging/wp-content/upgrade
+    chown -R www-data:wordpress /var/www/html/staging/wp-content/temp
+    chown -R www-data:wordpress /var/www/html/staging/wp-content/upgrade
+    chown www-data:wordpress /var/www/html/staging/wp-config.php
+    chmod 0440 /var/www/html/staging/wp-config.php ## 0440 probably better (0660 not needed as wp-config restricted in SlickStack and 0640 either)
+fi
+
+## dev ##
+if [[ "$DEV_SITE" != "false" ]]; then 
+    mkdir /var/www/html/dev
+    mkdir /var/www/html/dev/wp-content/temp
+    mkdir /var/www/html/dev/wp-content/uploads
+    mkdir /var/www/html/dev/wp-content/upgrade
+    chown -R www-data:wordpress /var/www/html/dev/wp-content/temp
+    chown -R www-data:wordpress /var/www/html/dev/wp-content/upgrade
+    chown www-data:wordpress /var/www/html/dev/wp-config.php
+    chmod 0440 /var/www/html/dev/wp-config.php ## 0440 probably better (0660 not needed as wp-config restricted in SlickStack and 0640 either)
+fi
+
+####################################################################################################
+#### SS-Perms-WordPress-Core: Touch Timestamp File (End Script) ####################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_WORDPRESS_CORE"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://stackoverflow.com/questions/10062513/install-wordpress-using-bash-shell-without-visiting-wp-admin-install-php
+## Ref: https://github.com/littlebizzy/throwaway-theme/blob/master/functions.php
+
+## SS_EOF

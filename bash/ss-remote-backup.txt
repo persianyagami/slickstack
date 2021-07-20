@@ -1,0 +1,63 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-remote-backup.txt ###############################
+#### path: /var/www/ss-remote-backup ###############################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Syncs local production server data to supported Rclone cloud storage services ########
+#### module version: Rclone 1.55.x #################################################################
+#### bash aliases: ss rclone, ss remote backup #####################################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Remote-Backup: Message (Begin Script) ######################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-remote-backup: Syncs local production server data to supported Rclone cloud storage services... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Remote-Backup: Send Local Files To Remote Rclone Destination ###############################
+####################################################################################################
+
+rclone "$RCLONE_MODE" --transfers 15 --retries 5 "/var/www/" "${RCLONE_SERVICE}:${RCLONE_REMOTE_PATH}"
+
+####################################################################################################
+#### SS-Remote-Backup: Touch Timestamp File (End Script) ###########################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_REMOTE_BACKUP"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://rclone.org
+## Ref: https://github.com/jamesrascal/wordpress-backup
+## Ref: https://dev.to/hunterparks/backing-up-files-to-backblaze-b2-with-rclone
+## Ref: https://help.backblaze.com/hc/en-us/articles/1260804565710-How-to-use-rclone-with-Backblaze-B2-Cloud-Storage
+## Ref: https://www.howtogeek.com/451262/how-to-use-rclone-to-back-up-to-google-drive-on-linux/
+## Ref: https://forum.rclone.org/t/bash-script-cronjob-for-automating-rclone-sync/13526
+## Ref: https://forum.rclone.org/t/trying-to-create-a-bash-script-to-run-a-command-when-rclone-doesnt-transfer-anything-x-times/17738
+## Ref: https://medium.com/swlh/using-rclone-on-linux-to-automate-backups-to-google-drive-d599b49c42e8
+## Ref: https://github.com/wolfv6/rclone_jobber
+
+## SS_EOF

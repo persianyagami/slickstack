@@ -1,14 +1,76 @@
-# SlickStack [ss] Beta 20.04
+# SlickStack (Beta)
 
 SlickStack is a free LEMP stack automation script written in Bash designed to enhance and simplify WordPress provisioning, performance, and security.
 
-⮕ ⮕ ⮕ [ **Free Facebook group (real names/faces required)**](https://www.facebook.com/groups/slickstack/)
+* [**Matrix/Element room (public)**](https://app.element.io/#/room/#general:matrix.slickstack.io)
+* [**Discord server**](https://discord.gg/nGskJdg)
+* [**Skype group chat**](https://join.skype.com/NdpqKrN2BHdN)
 
-⮕ ⮕ ⮕ [ **Join us on Spectrum Chat (like Slack + Discourse in a single app)**](https://spectrum.chat/slickstack)
+## What To Expect
 
-| Google PageSpeed | GTMetrix | Pingdom | Security Headers | Qualys SSL Labs | WebPageTest |
-| :--------------: | :------: | :-----: | :--------------: | :-------------: | :-------------: |
-| [**A**](https://developers.google.com/speed/pagespeed/insights/?url=https%3A%2F%2Fslickstack.io%2F) | [**A**](https://gtmetrix.com/reports/slickstack.io/zpLMZ1eb) | [**A**](https://tools.pingdom.com/#5aeba9dea8000000) | [**A**](https://securityheaders.com/?q=https%3A%2F%2Fslickstack.io%2F&followRedirects=on) | [**A**](https://www.ssllabs.com/ssltest/analyze.html?d=slickstack.io&latest) | [**A**](https://www.webpagetest.org/result/190920_68_a4a541db9847ce601ef264b41df9d0f3/) |
+| PageSpeed | GTMetrix | Pingdom | SecHeaders | SSL Labs | WebPageTest | ImmuniWeb |
+| :--------------: | :------: | :-----: | :--------------: | :-------------: | :-------------: | :-------------: |
+| [**A**](https://developers.google.com/speed/pagespeed/insights/?url=https%3A%2F%2Fslickstack.io%2F) | [**A**](https://gtmetrix.com/reports/slickstack.io/zpLMZ1eb) | [**A**](https://tools.pingdom.com/#5aeba9dea8000000) | [**A**](https://securityheaders.com/?q=https%3A%2F%2Fslickstack.io%2F&followRedirects=on) | [**A**](https://www.ssllabs.com/ssltest/analyze.html?d=slickstack.io&latest) | [**A**](https://www.webpagetest.org/result/190920_68_a4a541db9847ce601ef264b41df9d0f3/) | [**A**](https://www.immuniweb.com/websec/?id=pmqYyXDB) |
+
+## Core Modules
+
+*Last updated: Jun 28, 2021*
+
+| LEMP Module | Mirrors | Version | What does SlickStack [ss] customize? |
+| :------------- | :----------: | :----------: | :----------: |
+| **Ubuntu LTS** | [mirrors](https://mirrors.slickstack.io/modules/ubuntu/) | 20.04 | `crontab` + `gai.conf` + `sshd_config` + `sudoers` + `sysctl.conf` |
+| **Nginx** | [mirrors](https://mirrors.slickstack.io/modules/nginx/) | 1.18.x | `nginx.conf` + server blocks |
+| **OpenSSL** | [mirrors](https://mirrors.slickstack.io/modules/openssl/) | 1.1.1x | `slickstack.crt` + `slickstack.key` + `dhparam.pem` |
+| **Lets Encrypt** | [mirrors](https://mirrors.slickstack.io/modules/letsencrypt/) | 0.40.x | `cert.perm` + `chain.pem` + `fullchain.pem` + `privkey.pem` |
+| **MySQL** | [mirrors](https://mirrors.slickstack.io/modules/mysql/) | 8.0.x | `my.cnf` |
+| **PHP-FPM** | [mirrors](https://mirrors.slickstack.io/modules/php-fpm/) | 7.4.x | `php.ini` + `php-fpm.conf` + `www.conf` |
+| **Redis** | [mirrors](https://mirrors.slickstack.io/modules/redis/) | 5.0.x | `redis.conf` + `object-cache.php` |
+| **WordPress** | [mirrors](https://mirrors.slickstack.io/modules/wordpress/) | 5.7.2 | some WP Core junk files are removed by `ss-clean` |
+| **WP-CLI** | [mirrors](https://mirrors.slickstack.io/modules/wordpress/wp-cli/) | 2.5.0 | default config |
+| **Adminer** | [mirrors](https://mirrors.slickstack.io/modules/adminer/) | 4.8.1 | default config |
+| **Git** | [mirrors](https://mirrors.slickstack.io/modules/git/) | 2.25.x | default config |
+| **UFW Firewall** | [mirrors](https://mirrors.slickstack.io/modules/ufw-firewall/) | 0.36 | `ufw` + `ufw.conf` + `user-rules` |
+| **ClamAV** | [mirrors](https://mirrors.slickstack.io/modules/clamav/) | 0.102.x | `freshclam.conf` |
+
+## Changelog
+
+* **NEW!** SSH keys are now finally working! We are using a "centralized" auth keys file to avoid data loss and for easier management and backup purposes. The public key file is located under `/var/www/auth/authorized_keys` and a private/public key pair will be generated automatically for you during `ss-install` and/or `ss-install-ubuntu-ssh` ... the private key will automatically be deleted after a few hours, and the public key is automatically installed for you. At the end of the `ss-install` process (when it runs `ss-stack-overview`) the shell will display your private key hash briefly so you can copy it to your local computer. Please note that you can use a different key pair if you prefer, just be sure to upload your public key file to `/var/www/auth/id_rsa.pub` before `ss-install` runs. We are looking for feedback on our current default settings in `sshd_config` so please let us know if you're an SSH guru!
+
+* **NEW!** Support for third-party SSL certificates is here, by popular demand! We have not tested this, but it should now work. For those interested in using third-party SSL please test the feature and offer us your feedback. You will need to upload your cert bundle to `/var/www/certs/thirdparty.pem` and your private key to `/var/www/certs/keys/thirdparty.key` ... if any conflicts or problems please tell us so we can expand features here as required.
+
+* **NEW!** Early support for whitelabel branding now exists, at least for changing the WP Admin menu name from "SlickStack" to a name you choose, such as your agency's name, using the new ss-config variable `WHITELABEL_BRAND`... this variable will likely be used elsewhere, in the future.
+
+* **NEW!** `ss-install-php-packages` will now verify that your "custom" PHP extensions are the correct version in `ss-config` before installing them, otherwise it will revert to using our default PHP extensions. We've also cleaned up the script to begin our goal of automatic compatibility with any Ubuntu LTS (and PHP) version so that SlickStack will automatically install the default PHP version preferred by each Ubuntu LTS version. At this time, we have no plans to support multiple PHP versions per server or non-standard PHP versions per server, since predictability is a major goal for us.
+
+* **NEW!** More generic filenames now exist by default for database dumps, and we have prepared (not fully supported yet) to support dumping any of the 3 databases e.g. production.sql, staging.sql, and development.sql into the `/var/www/backups/mysql/` directory whenever `ss-dump-database` runs. Keep in mind that by default only the production database will be dumped at scheduled intervals. For large databases, be sure you have disk space!
+
+* **NEW!** We have decided to not proceed with support for Postfix (email module) at this time, probably indefinitely. There are too many security and configuration issues to worry about and maintain. Also, modern cloud platforms have their own email alert systems in place for server resources, so there is less reason to support the server OS to be able to send out email alerts (which was the main reason we were considering Postfix support). Alternatively, we will continue to improve the SlickStack panel in WP Admin which may eventually support having WordPress sending out email alerts based on SLickStack status reports.
+
+* **NEW!** The self-signed OpenSSL certificate has been modernized to use 4096 bit key (previously only 2048) and to support the full array of domain names required by a typical SlickStack server including example.com, www.example.com, staging.example.com, and dev.example.com (previously just a single FQDN). This improvement is crucial to preparing SlickStack to properly and securely handle staging sites, etc. Going forward SlickStack will assume: no subdirectory installs, staging/dev subdomains are ALWAYS sub-FQDN meaning if you install SS on a subdomain like blog.example.com the staging site will ONLY support staging.blog.example.com. It will be your responsibility to upgrade Cloudflare (etc) to ensure proper support for sub-subdomains at the proxy level. The ability for SlickStack to properly redirect e.g. reverse IP address or (non)www queries to canonical will depend on your team configuring the proper DNS records.
+
+* **NEW!** A new variable `SS_DATABASE_REMOTE` in the `ss-config` now indicates whether your origin server is using a remote MySQL database or not. If this variable is set to `true` than `ss-install` will skip installation of MySQL module on the origin server.
+
+* **NEW!** All Nginx server blocks are now installed under `/var/www/sites` instead of the default Debian folder `/etc/nginx/sites-available` and/or `/etc/nginx/sites-enabled` ... this means that you can now easily backup your server blocks by setting your remote SFTP backup service to sync everything under the `/var/www/` parent directory... it also means one more thing you don't need to `cd` around Linux to find anymore... since SlickStack only supports a single domain and everything is automated using our `ss-config` settings, there was no need to keep the Debian approach to Nginx server blocks anymore.
+
+* **NEW!** Due to timeouts from GitHub servers, some `wget` calls have resulted in broken SS files in recent months, often totally breaking websites that are hosted on SS servers. We are beginning a process of implementing fail-safe features in all our cron jobs and scripts so that if files are retrieved from GitHub that do not contain a specific string `SS_EOF` then the file is assumed corrupt and the install task (etc) is skipped. Please offer your feedback for how to best implement this process or alternative ideas for avoiding file corruption due to `wget` timeouts and related issues, thanks!
+
+* **NEW!** Organization of our GitHub repo is now complete with a much easier structure to understand. All bash scripts are under the `bash` folder and all cron jobs are under the `crons` folder... custom cron job templates can be found under the `/crons/custom/` folder. The rest of LEMP stack module config boilerplates can be found in the relevant child folders under `modules` folder... this should make things much simpler to browse going forward.
+
+* **NEW!** If you have noticed problems before with ss core cron jobs or ss core bash scripts being suddenly "null" (empty of content) and thus your entire stack becoming frozen out of receiving updates... fear not, we have discovered this is because GitHub servers sometimes timeout and result in `wget` overwriting core scripts with blank files... to solve this problem permanently, SlickStack `crontab` will now forcefully retrieve ss core cron jobs a few times each day, regardless of settings in `ss-config` and regardless of if all your other files are damaged or missing... a massive improvement to your SS server's longevity.
+
+* **NEW!** If you have struggled with MySQL 8.0 performance on smaller servers, we realized that binary logging (now enabled by default) sometimes creates a massive amount of files and exhausts disk space and otherwise hurts performance. We have now disabled this feature by default, please run `ss-install-mysql-config` or reinstall your SlickStack server with `ss-install` if you have problems with disk space.
+
+* **NEW!** We have changed the way custom cron jobs can be added. Instead of adding to `ss-config` which was rather janky, you can now create a separate bash script under the `/var/www/crons/custom/` folder for every single custom cron job you wish to activate. Much cleaner and stable way to run custom jobs!
+
+* **NEW!** A 2GB swapfile is now installed by default due to issues with MySQL 8.0 we have seen on low memory VPS servers. The new swapfile should help guarantee stability and keep MySQL from crashing due to intensive processes like remote backup and restore (e.g. CodeGuard), etc.
+
+* **NEW!** Another long-requested feature is here, custom WP cron schedules using the server... in our case, you can change `WP_CONFIG_METHOD` to be `server` and then SlickStack will disable wp-cron in the `wp-config.php` file next time you run `ss-install-wordpress-config` and our core cron jobs will then takeover running WP-CRON on the interval you have chosen using `WP_CRON_INTERVAL` inside your `ss-config` file... phew!
+
+* **NEW!** PHP extensions can now be fully customized using the `PHP_EXTENSIONS` option in `ss-config`. Remember to include the `php7.4-fpm` extension as it is NOT included by default in our installation process (nor are any other PHP extensions). Also remember that `php7.4` should NOT be installed on LEMP stack servers, because all you need is the fpm extension which includes are relevant dependencies. If the `PHP_EXTENSIONS` option is missing or commented out, our installer will simply choose the most common required PHP extensions for WordPress that SlickStack recommends using.
+
+* **NEW!** Custom cron jobs are here! A much requested feature is finally here, and simpler than we expected. Simply edit the `SS_CUSTOM_CRON_` options in your `ss-config` file in a nice central location for all editing. These custom commands should be written in normal bash style and NOT crontab syntax, because these variables are simply sourced into our ss core cron job files (bash scripts).
+
+* **NEW!** Default bash prompt has now been prettified to a nice pink color and displays `user@hostname` (FQDN) along with the current working directory. This helps improve consistency across cloud networks, as some providers will alter the prompt to something unrecognizable. We have also introduced `ss` alias commands (not yet fully complete) so that spaced-out-commands now work. Instead of typing `sudo bash /var/www/ss-check` you can now simply type `ss check` when logged in to your server as the sudo or root user. Other longer examples will work soon such as `ss install wordpress` or `ss perms nginx`.
 
 * **NEW!** We continue to split `ss-install` and `ss-perms` and `ss-purge` into subscripts for easier management, and will probably split a few other core bash scripts into subscripts as well to continue fine-tuning script organization and naming. We also continue to add more and more "intervals" to `ss-config` meaning that you can choose when to run any of the core bash scripts on the cron schedules (or not)... there are too many to list here, so just review the latest template for `ss-config` to see all the latest options that can be configured. A new script `ss-reboot` has also been launched to automate and schedule server reboots, if desired.
 
@@ -28,8 +90,6 @@ SlickStack is a free LEMP stack automation script written in Bash designed to en
 
 * **NEW!** (Experimental) SSH keys are now supported (save public key into `/var/www/meta/.ssh/authorized_keys`)
 
-* **NEW!** SlickStack now bundles `Adminer` (phpmyadmin) by default, access at: example.com/adminer
-
 * **NEW!** We briefly disabled `SQL_MODE` in the `my.cnf` boilerplate due to a conflict with `ss-config` default settings for the recommended MySQL mode. After realizing that MySQL 8.0 no longer supports NO_AUTO_CREATE_USER, we removed that submode from the default SQL_MODE in the `ss-config` boilerplate default settings, and re-enabled SQL_MODE in the `my.cnf` boilerplate.
 
 * **NEW!** SlickStack is now considered Beta (no longer Alpha) and has been moved to supporting Ubuntu 20.04 LTS only, along with PHP 7.4 and MySQL 8.0 which are the new Ubuntu defaults. We have ensured no critical conflicts exist, but some of the documentation and configuration are still being fully optimized for these updated module versions.
@@ -42,8 +102,6 @@ SlickStack is a free LEMP stack automation script written in Bash designed to en
 
 * **NEW!** SlickStack now has self-healing functions in the root Crontab and `1-cron-often` and `2-cron-regular` to ensure that Core Cron Jobs will be reinstalled fresh in case they are missing or damaged. This self-healing function also ensures that the critical Core Bash Scripts `ss-check` and `ss-worker` also exist and are intact every single day! 
 
-NOTE: The self-healing function will respect any custom Cron Job schedules found in your `ss-config` file...
-
 * **NEW!** Running `ss-update` will now automagically update your `ss-config` to latest template... any variables that are missing or undefined will simply be setup using the default (recommended) values for those variables...
 
 * **NEW!** Long-awaited Let's Encrypt (Certbot) support is now live using `SSL_TYPE` option in `ss-config`... those who do not wish to use CloudFlare can now use this approach instead... OpenSSL + CloudFlare is still always our recommended approach however... also, keep in mind that during initial setup (the first time that you request an SSL cert via Certbot) you will still need to have CloudFlare active for `.well-known` domain verification to work properly over HTTPS (otherwise Certbot will complain re: the self-signed OpenSSL cert)...
@@ -54,44 +112,9 @@ NOTE: The self-healing function will respect any custom Cron Job schedules found
 
 * **NEW!** Our new default object cache (forked from PressJitsu) supports a `OBJECT_CACHE` defined constant set to either `true` (default) or `false` to easily deactivate object caching without needing to delete the `object-cache.php` file...
 
-* **NEW!** `ss-purge` will now delete all Transients (along with clearing all LEMP stack caches)...
-
-* **NEW!** `ss-restart` now provides a quick and easy way to restart all LEMP services for testing, etc...
-
-* **NEW!** SlickStack now supports [throwaway themes](https://github.com/littlebizzy/throwaway-theme) to customize `wp_options` during install...
-
-* **NEW!** The `ss-purge` core script clears FastCGI Cache, OPcache, and Redis object cache in one go...
-
-* **NEW!** SlickStack can now convert DOS files to Unix format via `SS_DOS2UNIX` variable in `ss-config` that will run automatically whenever the `ss-perms` script is called (end of the script)...
-
 * **NEW!** SlickStack now supports custom plugin blacklists using `PLUGIN_BLACKLIST_SOURCE` variable...
 
 * **NEW!** SlickStack now does `include_once` within wp-config.php on the Custom Functions (MU plugin) file `/var/www/html/wp-content/functions.php` meaning much more reliable PHP functions...
-
-## Core Modules [[read more](https://slickstack.io/modules)]
-
-*Last updated: Nov 1, 2020*
-
-*Default Ports: 80 (HTTP), 443 (HTTPS), 6969 (SSH)*
-
-| LEMP Module | Mirrors | Version | What does SlickStack [ss] customize? |
-| :------------- | :----------: | :----------: | :----------: |
-| **Ubuntu** | [mirrors](http://mirrors.slickstack.io/ubuntu/) | 20.04 (LTS) | `crontab` + `gai.conf` + `sshd_config` + `sudoers` + `sysctl.conf` |
-| **Nginx (Extras)** | [mirrors](http://mirrors.slickstack.io/nginx/) | 1.18.x | `nginx.conf` + `default` (server block) |
-| **FastCGI Cache** | [mirrors](http://mirrors.slickstack.io/fastcgi-cache/) | 1.18.x | `fastcgi-cache.conf` (moved to `nginx.conf`) |
-| **OpenSSL** | [mirrors](http://mirrors.slickstack.io/openssl/) | 1.1.1x | `nginx.crt` + `nginx.key` |
-| **Let's Encrypt** | [mirrors](http://mirrors.slickstack.io/letsencrypt/) | 0.40.x | `cert.perm` + `privkey.pem` + `chain.pem` + `fullchain.pem` |
-| **MySQL** | [mirrors](http://mirrors.slickstack.io/mysql/) | 8.0.x | `my.cnf` |
-| **PHP-FPM** | [mirrors](http://mirrors.slickstack.io/php-fpm/) | 7.4.x | `php.ini` + `php-fpm.conf` + `www.conf` |
-| **Zend / OPcache** | [mirrors](http://mirrors.slickstack.io/opcache/) | 3.4.x / 7.4.x | (same as PHP-FPM) |
-| **Redis (Obj Cache)** | [mirrors](http://mirrors.slickstack.io/redis/) | 5.0.x | `redis.conf` + `object-cache.php` |
-| **WordPress** | [mirrors](http://mirrors.slickstack.io/wordpress/) | 5.5.3 | some WP Core junk files are removed by `ss-clean` |
-| **MU Plugins** | [mirrors](http://mirrors.slickstack.io/mu-plugins/) | (n/a) | optional `mu-plugins` by LittleBizzy |
-| **WP-CLI** | [mirrors](http://mirrors.slickstack.io/wp-cli/) | 2.4.0 | default config |
-| **Adminer** | [mirrors](http://mirrors.slickstack.io/adminer/) | 4.7.7 | default config |
-| **Git** | [mirrors](http://mirrors.slickstack.io/git/) | 2.25.x | default config |
-| **UFW Firewall** | [mirrors](http://mirrors.slickstack.io/ufw-firewall/) | 0.36 | `ufw` + `ufw.conf` + `user-rules` |
-| **ClamAV** | [mirrors](http://mirrors.slickstack.io/clamav/) | 0.102.x | `freshclam.conf` |
 
 ## Abstract [[read more](https://slickstack.io/about)]
 
@@ -115,245 +138,13 @@ Because it’s written purely in [Bash](https://en.wikipedia.org/wiki/Bash_(Unix
 
 The below installation steps assume that you've already spun up a dedicated Ubuntu Linux VPS server (KVM) with at least 2GB RAM memory and that you are now logged in via SSH:
 
-1. `sudo mkdir /var/www/ && sudo chown root:root /var/www/ && sudo chmod 755 /var/www/`
-
-2. `sudo nano /var/www/ss-config`  [*configure as desired*](http://mirrors.slickstack.io/ss-config-sample.txt)
-
-3. `cd /var/www/ && sudo wget -O ss slick.fyi && sudo chmod 755 ss && sudo bash ss`
-
-4. `sudo reboot`
+`cd /tmp/ && wget -O ss slick.fyi && bash ss`
 
 **NOTE:** SlickStack [ss] requires CloudFlare to be activated on your domain before SSL (HTTPS) will be recognized as a fully secure and CA-signed domain, because of its self-signed OpenSSL certificate.
 
 From this point forward, you can manage your SlickStack [ss] server by simply using the `sudo bash` command on any one of the included **ss** scripts located within the `/var/www/` directory, as needed. However, in most cases there shouldn't be any need for much hands-on management as the server will intelligently run various cron jobs which connect to this GitHub repo (or whichever fork of this repo that your team has setup... be sure to modify all `wget` sources).
 
 You can safely re-install SlickStack [ss] anytime via `sudo bash /var/www/ss-install` without causing any conflicts or data loss since the installation process is completely [idempotent](https://en.wikipedia.org/wiki/Idempotence).
-
-## Directory Structure
-
-After completing the installation steps above, your `/var/www/` directory should look exactly as below. Keep in mind that you should never directly modify the crontab on any SlickStack [ss] server, nor should you modify any of the files appearing below with the exception of `ss-config` (this does not apply to "WordPress" files found under `/var/www/html/`)...
-
-    /var/www/0-crontab
-    /var/www/1-cron-often
-    /var/www/2-cron-regular
-    /var/www/3-cron-quarter-hourly
-    /var/www/4-cron-half-hourly
-    /var/www/5-cron-hourly
-    /var/www/6-cron-quarter-daily
-    /var/www/7-cron-half-daily
-    /var/www/8-cron-daily
-    /var/www/9-cron-half-weekly
-    /var/www/10-cron-weekly
-    /var/www/11-cron-half-monthly
-    /var/www/12-cron-monthly
-    /var/www/13-cron-sometimes
-    /var/www/cache/
-    /var/www/html/
-    /var/www/logs/
-    /var/www/meta/
-    /var/www/ss-check
-    /var/www/ss-clean
-    /var/www/ss-config
-    /var/www/ss-config-sample
-    /var/www/ss-dump
-    /var/www/ss-encrypt
-    /var/www/ss-import
-    /var/www/ss-install
-    /var/www/ss-muplugs
-    /var/www/ss-perms
-    /var/www/ss-purge
-    /var/www/ss-restart
-    /var/www/ss-scan
-    /var/www/ss-update
-    /var/www/ss-worker
-    
-...likewise, your `/var/www/html/` (WordPress) directory should look like this:    
-    
-    /var/www/html/wp-admin/...
-    /var/www/html/wp-content/
-    /var/www/html/wp-content/blacklist.txt
-    /var/www/html/wp-content/functions.php
-    /var/www/html/wp-content/index.php
-    /var/www/html/wp-content/languages/
-    /var/www/html/wp-content/mu-plugins/
-    /var/www/html/wp-content/object-cache.php
-    /var/www/html/wp-content/plugins/
-    /var/www/html/wp-content/temp/
-    /var/www/html/wp-content/themes/
-    /var/www/html/wp-content/upgrade/
-    /var/www/html/wp-content/uploads/
-    /var/www/html/wp-includes/...
-    /var/www/html/wp-...
-    
-## MU (Must-Use) Plugins [[read more](https://slickstack.io/modules/mu-plugins)]
-    
-If you choose to deploy a SlickStack [ss] server using our free WPLite boilerplate, the installation process will include several [Must Use plugins](https://wordpress.org/support/article/must-use-plugins/) inside your WordPress structure (`/var/www/html/wp-content/mu-plugins/`) that are maintained by LittleBizzy. If you do not wish for these Must Use plugins to be installed, and want a default "vanilla" WordPress installation, choose "wordpress" instead of "wplite" when setting up your `ss-config` options:
-
-* [**Autoloader**](https://github.com/littlebizzy/autoloader): Enables standard WordPress plugins contained in a folder to be placed in the mu-plugins directory and loaded prior to others (forked from Bedrock).
-* [**Clear Caches**](https://github.com/littlebizzy/clear-caches): The easiest way to clear caches including WordPress cache, PHP Opcache, Nginx cache, Transient cache, Varnish cache, and object cache (e.g. Redis).
-* [**CloudFlare**](https://github.com/littlebizzy/cloudflare): Easily connect your WordPress website to free optimization features from CloudFlare, including one-click options to purge cache and enable dev mode.
-* [**Custom Functions**](https://github.com/littlebizzy/custom-functions): Enables the ability to input custom WordPress functions such as filters in a centralized place to avoid the dependence on a theme functions.php file.
-* [**Dashboard Cleanup**](https://github.com/littlebizzy/dashboard-cleanup): Cleans up the WP Admin backend by disabling various bloat features including nag notices, Automattic spam, and other outdated and pointless items.
-* [**Delete Expired Transients**](https://github.com/littlebizzy/delete-expired-transients): Deletes all expired transients upon activation and on a daily basis thereafter via WP-Cron to maintain a cleaner database and improve performance.
-* [**Disable Attachment Pages**](https://github.com/littlebizzy/disable-attachment-pages): Completely disables media attachment pages which then become 404 errors to avoid thin content SEO issues and better guard against snoopers and bots.
-* [**Disable Embeds**](https://github.com/littlebizzy/disable-embeds): Disables both external and internal embedding functions to avoid slow page render, instability and SEO issues, and to improve overall loading speed.
-* [**Disable Emojis**](https://github.com/littlebizzy/disable-emojis): Completely disables both the old and new versions of WordPress emojis, removes the corresponding javascript calls, and improves page loading times.
-* [**Disable Empty Trash**](https://github.com/littlebizzy/disable-empty-trash): Completely disables the automatic trash empty for WordPress posts, custom posts, pages, and comments to avoid data loss and encourage manual emptying.
-* [**Disable Gutenberg**](https://github.com/littlebizzy/disable-gutenberg): Completely disables the Gutenberg block editor and enables the classic WordPress post editor (TinyMCE aka WYSIWYG) for lighter coding and simplicity.
-* [**Disable Image Compression**](https://github.com/littlebizzy/disable-image-compression): Completely disables all JPEG compression in WordPress including image uploads, thumbnails, and image editing tools, thus retaining original quality.
-* [**Disable Post Via Email**](https://github.com/littlebizzy/disable-post-via-email): Completely disables and hides the Post Via Email feature included in WordPress core for stronger security and to simplify the backend settings page.
-* [**Disable XML-RPC**](https://github.com/littlebizzy/disable-xml-rpc): Completely disables all XML-RPC related functions in WordPress including pingbacks and trackbacks, and helps prevent attacks on the xmlrpc.php file.
-* [**Error Log Monitor**]():
-* [**Force Strong Hashing**](https://github.com/littlebizzy/force-strong-hashing): Forces all user passwords generated by WordPress to be hashed using Bcrypt, the most secure and popular PHP hashing algorithm currently available.
-* [**Header Cleanup**](https://github.com/littlebizzy/header-cleanup): Cleans up most of the unnecessary junk meta included by default in the WordPress header including generator, RSD, shortlink, previous and next, etc.
-* [**Limit Heartbeat**](https://github.com/littlebizzy/limit-heartbeat): Limits the Heartbeat API in WordPress to certain areas of the site (and a longer pulse interval) to reduce AJAX queries and improve resource usage.
-* [**Minify HTML**](https://github.com/littlebizzy/minify-html): Tactfully minifies HTML output and markup to remove line breaks, whitespace, comments, and other code bloat to cleanup source code and improve speed.
-* [**Plugin Blacklist**](https://github.com/littlebizzy/plugin-blacklist): Allows web hosts, agencies, or other WordPress site managers to disallow a custom list of plugins from being activated for security or other reasons.
-* [**Server Status**](https://github.com/littlebizzy/server-status): Useful statistics about the server OS, CPU, RAM, load average, memory usage, IP address, hostname, timezone, disk space, PHP, MySQL, caches, etc.
-* [**SFTP Details**](https://github.com/littlebizzy/sftp-details): Displays a small Dashboard widget to remind logged-in Admin users of their server SFTP login information for easy reference (uses defined constants).
-* [**Virtual Robotstxt**](https://github.com/littlebizzy/virtual-robotstxt): Replaces the default virtual robots.txt generated by WordPress with an editable one, and deletes any physical robots.txt file that may already exist.
-* [**XXX Notices**](https://github.com/littlebizzy/slickstack/blob/master/mu-plugins/xxx-notices.txt): Occasional notices designed to appear in the WP Admin Dashboard that mention important changes regarding the SlickStack environment (white-labeled).
-    
-## Defined Constants
-
-The included Must Use plugins that SlickStack [ss] bundles as part of the `wplite` boilerplate support the following defined constants. Some of them are hard-coded in the `wp-config.php` file in order to optimize performance, however they can otherwise be customized using the Custom Functions file at `/wp-content/functions.php` ... please note that some of these are "planned" and not yet functional, we are hurrying to update the documentation accordingly.
-
-    /** Plugin Meta (Limited Support) */
-    define('AUTOMATIC_UPDATE_PLUGINS', false); // default = false
-    define('DISABLE_NAG_NOTICES', false); // default = false
-
-    /** Clear Caches Functions (v1.2.1) */
-    define('CLEAR_CACHES', true); // default = true
-    define('CLEAR_CACHES_NGINX', true); // default = true
-    define('CLEAR_CACHES_NGINX_PATH', '/var/www/cache'); // default = /var/www/cache
-    define('CLEAR_CACHES_OBJECT', true); // default = true
-    define('CLEAR_CACHES_OPCACHE', true); // default = true
-    
-    /** CloudFlare Functions (v1.5.0) */
-    define('CLOUDFLARE', true); // default = true
-    define('CLOUDFLARE_API_KEY', '@CLOUDFLAREAPIKEY'); // *must be unique*
-    define('CLOUDFLARE_API_EMAIL', '@CLOUDFLAREAPIEMAIL'); // *must be unique*
-    // define('CLOUDFLARE_WIDGET_DNS', true); // default = true
-    // define('CLOUDFLARE_WIDGET_ANALYTICS', true); // default = true
-
-    /** Custom Functions Functions (v1.0.0) */
-    // define('CUSTOM_FUNCTIONS', true); // default = true
-    // define('CUSTOM_FUNCTIONS_PATH', '/var/www/html/wp-content/functions.php'); // default = /var/www/html/wp-content/functions.php
-    
-    /** Dashboard Cleanup Functions (v1.1.2) */
-    define('DASHBOARD_CLEANUP', true); // default = true
-    define('DASHBOARD_CLEANUP_ADD_PLUGIN_TABS', true); // default = true
-    define('DASHBOARD_CLEANUP_ADD_THEME_TABS', true); // default = true
-    define('DASHBOARD_CLEANUP_CSS_ADMIN_NOTICE', true); // default = true
-    define('DASHBOARD_CLEANUP_DISABLE_SEARCH', true); // default = true
-    define('DASHBOARD_CLEANUP_EVENTS_AND_NEWS', true); // default = true
-    define('DASHBOARD_CLEANUP_IMPORT_EXPORT_MENU', true); // default = true
-    define('DASHBOARD_CLEANUP_LINK_MANAGER_MENU', true); // default = true
-    define('DASHBOARD_CLEANUP_QUICK_DRAFT', true); // default = true
-    define('DASHBOARD_CLEANUP_THANKS_FOOTER', true); // default = true
-    define('DASHBOARD_CLEANUP_WELCOME_TO_WORDPRESS', true); // default = true
-    define('DASHBOARD_CLEANUP_WOOCOMMERCE_CONNECT_STORE', true); // default = true
-    define('DASHBOARD_CLEANUP_WOOCOMMERCE_FOOTER_TEXT', true); // default = true
-    define('DASHBOARD_CLEANUP_WOOCOMMERCE_MARKETPLACE_SUGGESTIONS', true); // default = true
-    define('DASHBOARD_CLEANUP_WOOCOMMERCE_PRODUCTS_BLOCK', true); // default = true
-    define('DASHBOARD_CLEANUP_WOOCOMMERCE_TRACKER', true); // default = true
-    define('DASHBOARD_CLEANUP_WP_ORG_SHORTCUT_LINKS', true);  // default = true
-    
-    /** Delete Expired Transients Functions */
-    define('DELETE_EXPIRED_TRANSIENTS', true); // default = true
-    define('DELETE_EXPIRED_TRANSIENTS_HOURS', '6'); // default = 6
-    define('DELETE_EXPIRED_TRANSIENTS_MAX_EXECUTION_TIME', '10'); // default = 10
-    define('DELETE_EXPIRED_TRANSIENTS_MAX_BATCH_RECORDS', '50'); // default = 50
-    
-    /** Disable Attachment Pages Functions */
-    // define('DISABLE_ATTACHMENT_PAGES', true); // default = true
-    
-    /** Disable Embeds Functions (v1.3.0) */
-    define('DISABLE_EMBEDS', true); // default = true
-    define('DISABLE_EMBEDS_ALLOWED_SOURCES', 'twitter,facebook,youtube,soundcloud,etc'); // default = none
-    
-    /** Disable Emojis Functions */
-    // define('DISABLE_EMOJIS', true); // default = true
-    
-    /** Disable Empty Trash Functions */
-    // define('DISABLE_EMPTY_TRASH', true); // default = true
-    
-    /** Disable Gutenberg Functions (v1.1.0) */
-    define('DISABLE_GUTENBERG', true); // default = true
-    
-    /* Disable Image Compression Functions */
-    // define('DISABLE_IMAGE_COMPRESSION', true); // default = true
-    
-    /** Disable jQuery Migrate Functions */
-    // define('DISABLE_JQUERY_MIGRATE', true); // default = true
-    
-    /** Disable Post Via Email Functions */
-    // define('DISABLE_POST_VIA_EMAIL', true); // default = true
-    
-    /** Disable XML-RPC Functions */
-    // define('DISABLE_XML_RPC', true); // default = true
-    
-    /** Force HTTPS Functions (v1.4.0) */
-    define('FORCE_HTTPS', true); // default = true
-    define('FORCE_HTTPS_EXTERNAL_LINKS', false); // default = false
-    define('FORCE_HTTPS_EXTERNAL_RESOURCES', true); // default = true
-    define('FORCE_HTTPS_INTERNAL_LINKS', true); // default = true
-    define('FORCE_HTTPS_INTERNAL_RESOURCES', true); // default = true
-    
-    /** Force Strong Hashing Functions */
-    // define('FORCE_STRONG_HASHING', true); // default = true
-    
-    /** Header Cleanup Functions */
-    // define('HEADER_CLEANUP', true); // default = true
-    
-    /** Index Autoload Functions (v1.1.1) */
-    // define('INDEX_AUTOLOAD', true); // default = true
-    define('INDEX_AUTOLOAD_REGENERATE', false); // default = false
-    
-    /** Limit Heartbeat Functions (v1.1.0) */
-    define('LIMIT_HEARTBEAT', true); // default = true
-    define('LIMIT_HEARTBEAT_DISABLE_DASHBOARD', false); // default = false
-    define('LIMIT_HEARTBEAT_DISABLE_EDITOR', false); // default = false
-    define('LIMIT_HEARTBEAT_DISABLE_FRONTEND', true); // default = true
-    define('LIMIT_HEARTBEAT_INTERVAL_DASHBOARD', 600); // default = 600
-    define('LIMIT_HEARTBEAT_INTERVAL_EDITOR', 30); // default = 30
-    define('LIMIT_HEARTBEAT_INTERVAL_FRONTEND', 300); // default = 300
-    
-    /** Minify HTML Functions (v1.0.1) */
-    define('MINIFY_HTML', true); // default = true
-    define('MINIFY_HTML_INLINE_STYLES', true); // default = true
-    define('MINIFY_HTML_INLINE_STYLES_COMMENTS', true); // default = true
-    define('MINIFY_HTML_REMOVE_COMMENTS', true); // default = true
-    define('MINIFY_HTML_REMOVE_CONDITIONALS', true); // default = true
-    define('MINIFY_HTML_REMOVE_EXTRA_SPACING', true); // default = true
-    define('MINIFY_HTML_REMOVE_HTML5_SELF_CLOSING', false); // default = false
-    define('MINIFY_HTML_REMOVE_LINE_BREAKS', true); // default = true
-    define('MINIFY_HTML_INLINE_SCRIPTS', false); // default = false
-    define('MINIFY_HTML_INLINE_SCRIPTS_COMMENTS', false); // default = false
-    define('MINIFY_HTML_UTF8_SUPPORT', true); // default = true
-    
-    /* Plugin Blacklist Functions */
-    define('PLUGIN_BLACKLIST', true); // default = true
-    
-    /* Remove Query Strings Functions */
-    define('REMOVE_QUERY_STRINGS', true); // default = true
-    define('REMOVE_QUERY_STRINGS_ARGS', 'v,ver,version'); // default = v,ver,version
-    
-    /* Server Status Functions */
-    define('SERVER_STATUS', true); // default = true
-    define('SERVER_STATUS_DISPLAY', 'widefat'); // default = none
-    
-    /* SFTP Details Functions */
-    define('SFTP_DETAILS', true); // default = true
-    define('SFTP_DETAILS_SERVER', '123.123.123.123'); // *must be unique*
-    define('SFTP_DETAILS_USER', 'username'); // *must be unique*
-    define('SFTP_DETAILS_PASSWORD', 'password'); // *must be unique*
-    define('SFTP_DETAILS_PORT', '6969'); // default = 6969
-    define('SFTP_DETAILS_ROOT_DIR', '/var/www'); // default = /var/www
-    define('SFTP_DETAILS_PUBLIC_DIR', '/var/www/html'); // default = /var/www/html
-    
-    /* Virtual Robots.txt Functions */
-    define('VIRTUAL_ROBOTSTXT', true); // default = true
 
 ## Philosophy
 
@@ -364,198 +155,3 @@ While this shift is exciting, there is now a massive and growing disconnect betw
 While Silicon Valley "gurus" and corporations pump out new SaaS services (or incredibly complex Configuration Management tools like Ansible) on a daily basis, the typical small business website is still trying to figure out how to make their contact forms work correctly. The "legacy" shared web hosting monopolies — think EIG or GoDaddy — also have little motivation to education their audience, as perpetuating confusion seems to be a core pillar of their business model.
 
 Thus, before the likes of Google and Amazon and Shopify and Wix take over the entire web and turn it into Wall Street-backed website builders that feed into their private ecosystems, SlickStack hopes to bridge the knowledge gap between emerging technology and old-school web development to empower SMBs to achieve top notch website performance and security by offering a "controlled" LEMP-stack environment with limited options that is perfectly suited to the world's most popular open-source CMS: WordPress.
-
-## Comparison
-
-| ...               | SlickStack | EasyEngine | ServerPilot | Runcloud | Ansible | Puppet |   Salt  |   Chef  | Trellis | AnsiPress |   VVV  |  VCCW  | Centminmod | VPSSIM |
-|-------------------|:----------:|:----------:|:-----------:|:--------:|:-------:|:------:|:-------:|:-------:|:-------:|:---------:|:------:|:------:|:----------:|:------:|
-| 100% Free         |     Yes    |     Yes    |      No     |    No    |    --   |   --   |    --   |    --   |    --   |     --    |   --   |   --   |     --     |   --   |
-| Dependencies      |    None    |   Python   |     Ruby    |  Python  |  Python | Python | Ansible | Ansible | Vagrant |  Vagrant  | (Unix) | (Unix) |      -     |   --   |
-| Direct Management |     Yes    |     Yes    |      No     |    No    |    --   |   --   |    --   |    --   |    --   |     --    |   --   |   --   |     --     |   --   |
-| Shell Commands    |     Yes    |     No     |      No     |    No    |    No   |   No   |    No   |    No   |    No   |     No    |   Yes  |   Yes  |     --     |   --   |
-| WordPress Focus   |     Yes    |     No     |      No     |    No    |    No   |   Yes  |   Yes   |    No   |   Yes   |    Yes    |   No   |   Yes  |     --     |   --   |
-| Single Site Focus |     Yes    |     N/A    |      No     |    No    |   N/A   |   N/A  |    No   |    --   |    --   |     --    |   --   |   --   |     --     |   --   |
-| Email APIs        |     Yes    |     N/A    |     N/A     |    N/A   |    No   |   No   |    No   |    No   |    No   |     No    |   --   |   --   |     --     |   --   |
-| Monitoring        |    Monit   |     N/A    |     None    |   None   |   None  |  None  |   None  |    --   |    --   |     --    |   --   |   --   |     --     |   --   |
-
-Others: Moss.sh, Webinoly, VestaCP, OneInStack, OpenResty, ServerPilot, RunCloud
-
-## FAQ
-
-**Can I use your technical SEO features on non-SlickStack sites?**
-
-Yes, you can. If you or your client has a WordPress website on a web host somewhere and can't move it to a SlickStack server for the time being, you can still make use of all our `mu-plugins` (micro plugins) that are included in SlickStack by simply installing them one-by-one. Or you can install "less" plugins by installing the "parent" plugins instead, such as Speed Demon, SEO Genius, Security Guard.
-
-**Why do you use Ubuntu instead of other distros?**
-
-Many geeky distro fanboys love to hate on Ubuntu for one reason or another, but the truth remains that besides RedHat, Ubuntu has been the only stand out and dominant Linux distro for many years now. They have beyond proven themselves when it comes to regularl and reliable versioning and release schedules, and incredible package maintenance. Ubuntu has their finger on the pulse of industry changes and has a solid idea of what packages should be included -- and what versions of those packages. Their unique and impressive focus on stability makes them a perfect OS to base a LEMP stack script on. Their decisions end up widely impacting the greater web hosting and web dev community, and they have a corporate sponsor that is financially stable, while still maintaining and promoting a truly open source community that is the perfect answer to avoiding Big Tech monopolies.
-
-More: https://slickstack.io/features/ubuntu/
-
-**What version of WordPress does SlickStack install?**
-
-Generally it installs the latest (current) version of WordPress, as long its not a major version. In other words, since our goal is stability and security, SlickStack will always bundle the most recent "minor" version of WordPress. So if the latest release of WordPress over at WordPress.org is currently 5.2.0 then SlickStack will usually wait to bundle version 5.2.1 because these minor versions (as per semantic versioning standards) means that several bugs and patches have now been fixed. So in this scenario if 5.2.1 is not yet available, then SlickStack will install 5.1.1 because its the latest stable "minor" patched release.
-
-More: https://slickstack.io/features/wordpress/
-
-**Why do you use MySQL instead of MariaDB?**
-
-The original reason for the MariaDB fork was because a handful of engineers feared that Oracle would neglect MySQL after they acquired Sun Microsystems in favor of the Oracle Database systems. This turned out to be far from true, and MySQL has maintained its market dominance without blinking an eye, while continue to be open source. While its true that MariaDB is more transparent about bug patches, and perhaps is more open source minded, the argument that MariaDB has better performance is really just not true when you compare typical WordPress hosting scenarios. Plus, MySQL continues to come out with new revolutionary features that the smaller team at MariaDB will likely find it impossible to compete with. Ultimately, the point is that Ubuntu still ships with MySQL being the default on their distributions, and until that changes, we will be sticking with MySQL. Our goal is stability and trusting the "upstream" stack as much as possible, which means not fixing things that aren't broken. We fully expect many companies might be moving back to MySQL in the next few years as well... time will tell.
-
-More: https://slickstack.io/features/mysql/
-
-**Why do you use OpenSSL instead of Let's Encrypt?** 
-
-This is largely a decision that is based on LittleBizzy's web hosting approach, which requires our clients to be behind CloudFlare. As the fastest DNS resolver in the world, it simply doesn't make any sense right now NOT to use CloudFlare, especially since its completely free. By using OpenSSL, which is included in Ubuntu Linux, it means easier installation and configuration, and it never expires either. In contrast, Let's Encrypt is much more complicated to setup and maintain, and their certificates expire constantly after 90 days, meaning your server management software must constantly renew it and manage it. There is really no point in our view to introduce more potential conflicts and failures into SlickStack, when OpenSSL pairs perfectly with CloudFlare's free SSL network, soon to be the largest SSL provider in the world. By using self-signed certs, SlickStack [ss] also avoids the potential of Man-In-The-Middle attacks, meaning even stronger security. This decision might change in the future, but for now we will only be supporting OpenSSL self-signed certicates and assuming an integration with CloudFlare.
-
-More: https://slickstack.io/features/openssl/
-
-**What is the complete list of Nginx modules that are installed?** 
-
-    nginx -V
-    nginx version: nginx/1.15.8
-    built with OpenSSL 1.1.0g  2 Nov 2017
-    TLS SNI support enabled
-    configure arguments: --with-cc-opt='-g -O2 -fdebug-prefix-map=/build/nginx-hFnDHF/nginx-1.15.8=. -fstack-protector-strong -Wformat -Werror=format-security -fPIC -Wdate-time -D_FORTIFY_SOURCE=2' --with-ld-opt='-Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-z,now -fPIC' --prefix=/usr/share/nginx --conf-path=/etc/nginx/nginx.conf --http-log-path=/var/log/nginx/access.log --error-log-path=/var/log/nginx/error.log --lock-path=/var/lock/nginx.lock --pid-path=/run/nginx.pid --modules-path=/usr/lib/nginx/modules --http-client-body-temp-path=/var/lib/nginx/body --http-fastcgi-temp-path=/var/lib/nginx/fastcgi --http-proxy-temp-path=/var/lib/nginx/proxy --http-scgi-temp-path=/var/lib/nginx/scgi --http-uwsgi-temp-path=/var/lib/nginx/uwsgi --with-compat --with-debug --with-pcre-jit --with-http_ssl_module --with-http_stub_status_module --with-http_realip_module --with-http_auth_request_module --with-http_v2_module --with-http_dav_module --with-http_slice_module --with-threads --with-http_addition_module --with-http_flv_module --with-http_geoip_module=dynamic --with-http_gunzip_module --with-http_gzip_static_module --with-http_image_filter_module=dynamic --with-http_mp4_module --with-http_perl_module=dynamic --with-http_random_index_module --with-http_secure_link_module --with-http_sub_module --with-http_xslt_module=dynamic --with-mail=dynamic --with-mail_ssl_module --with-stream=dynamic --with-stream_ssl_module --with-stream_ssl_preread_module --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-headers-more-filter --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-auth-pam --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-cache-purge --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-dav-ext --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-ndk --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-echo --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-fancyindex --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/nchan --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-lua --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/rtmp --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-uploadprogress --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-upstream-fair --add-dynamic-module=/build/nginx-hFnDHF/nginx-1.15.8/debian/modules/http-subs-filter
-    
-**What is the complete list of Nginx packages installed?**
-
-    dpkg --get-selections | grep -i nginx
-    libnginx-mod-http-auth-pam                      install
-    libnginx-mod-http-cache-purge                   install
-    libnginx-mod-http-dav-ext                       install
-    libnginx-mod-http-echo                          install
-    libnginx-mod-http-fancyindex                    install
-    libnginx-mod-http-geoip                         install
-    libnginx-mod-http-headers-more-filter           install
-    libnginx-mod-http-image-filter                  install
-    libnginx-mod-http-lua                           install
-    libnginx-mod-http-ndk                           install
-    libnginx-mod-http-perl                          install
-    libnginx-mod-http-subs-filter                   install
-    libnginx-mod-http-uploadprogress                install
-    libnginx-mod-http-upstream-fair                 install
-    libnginx-mod-http-xslt-filter                   install
-    libnginx-mod-mail                               install
-    libnginx-mod-nchan                              install
-    libnginx-mod-stream                             install
-    nginx-common                                    install
-    nginx-extras                                    install
-    
-**What is the complete list of PHP-FPM modules installed?**
-
-    php -m
-    [PHP Modules]
-    bcmath
-    calendar
-    Core
-    ctype
-    curl
-    date
-    dom
-    exif
-    fileinfo
-    filter
-    ftp
-    gd
-    gettext
-    hash
-    iconv
-    igbinary
-    json
-    libxml
-    mbstring
-    mysqli
-    mysqlnd
-    openssl
-    pcntl
-    pcre
-    PDO
-    pdo_mysql
-    Phar
-    posix
-    readline
-    redis
-    Reflection
-    session
-    shmop
-    SimpleXML
-    soap
-    sockets
-    sodium
-    SPL
-    standard
-    sysvmsg
-    sysvsem
-    sysvshm
-    tokenizer
-    wddx
-    xml
-    xmlreader
-    xmlwriter
-    xsl
-    Zend OPcache
-    zip
-    zlib
-
-    [Zend Modules]
-    Zend OPcache
-    
-**What is the complete list of PHP-FPM packages installed?**
-
-    dpkg --get-selections | grep -i php
-    php-common                                      install
-    php-igbinary                                    install
-    php-redis                                       install
-    php7.2                                          install
-    php7.2-bcmath                                   install
-    php7.2-cli                                      install
-    php7.2-common                                   install
-    php7.2-curl                                     install
-    php7.2-fpm                                      install
-    php7.2-gd                                       install
-    php7.2-json                                     install
-    php7.2-mbstring                                 install
-    php7.2-mysql                                    install
-    php7.2-opcache                                  install
-    php7.2-readline                                 install
-    php7.2-soap                                     install
-    php7.2-xml                                      install
-    php7.2-zip                                      install
-
-**Why don't use you env-vars (environment variables)?**
-
-Teams who use GitHub repos to develop their sites (e.g. dev/stage/production branches) have started using env-vars with systems like Roots Trellis so that their entire codebase can be safely open-source. However, this requires defining the env-vars within the server stack (hidden from public root) so it's not so friendly for many agencies. Since our goal is to support "typical" agencies with mostly frontend knowledge, we felt that reflecting the WordPress setup was a simpler approach and so if using SlickStack there will be two config files (ss-config and wp-config.php)
-
-**But shouldn't configs be outside the public root?**
-
-There's lots of "should" and theorizing in computer programming, but one reason for the success of WordPress is its pragmatism and user-friendliness. There's plenty to criticize about WordPress from the perspective of things like "12-factor apps" but let's remember that WordPress was around before many of these guidelines and even after better approaches have been founded, WordPress is still the king of CMS software for a reason.
-
-**Why ss-config-sample and not ss-config-example?**
-
-Because we aim to mirror WordPress Core as much as possible. Because the misnomer has existed in WordPress since the beginning, the WP Core team has [no intention](https://core.trac.wordpress.org/ticket/43827) of changing it.
-
-**Why don't you use TMPFS or similar?**
-
-For stability reasons, we don't use any tpmfs (memory-based storage) for caching or otherwise, as it introduces more instability, possible data loss, and doesn't necessarily improve performance. What people people don't realize is Linux already uses tmpfs for its own purposes, and already stores many "requests" in RAM. Best to let the operating system do its thing, and we optimize the software packages installed.
-
-**Can I run apt update && apt upgrade without issues?**
-
-Yes, you can. The entire point of SlickStack is to be a lightweight group of Bash scripts that save you time without adding bloat to your stack (and reducing most learning curves). Your LEMP stack will be just like any other LEMP stack tutorial you might setup using a tutorial online, just using our optimized templates for Nginx blocks, etc (and optional Must Use plugins for WordPress). But after setup is complete, you can just use the Ubuntu package manager to run updates if you like or just run ss-update and it will do the same thing instead (it always defaults to using the existing/old conf files to retain all configuration).
-
-## Thanks
-
-* [rtCamp](https://rtcamp.com) -- various inspiration
-* [Roots](https://roots.io) -- various inspiration and original author of Autoloader script
-* [Centminmod](https://centminmod.com) -- various inspiration
-* [Alex Georgiou](https://www.alexgeorgiou.gr) -- feedback on WP-CLI configuration
-* [Janis Elsts](https://w-shadow.com) -- author of Error Log Monitor plugin
-* [PressJitsu](http://pressjitsu.com) -- various inspuration and original author of Object Cache script
-
-## Ref
-
-* https://www.alexgeorgiou.gr/wp-cli-www-data-user-permissions-linux/
-
-## Keywords
-
-slickstack, slick stack, nginx auto installer, optimize lemp stack, best wordpress stack, lemp install script, trellis wordpress, easy engine, lemp auto installer, nginx install script, stackscript

@@ -1,0 +1,73 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-wordpress-config.txt ######################
+#### path: /var/www/ss-perms-wordpress-config ######################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets file and user permissions for WordPress (CMS) configuration files #############
+#### module version: WordPress 5.5.x ###############################################################
+#### sourced by: ss-perms, ss-install-wordpress-config #############################################
+#### bash aliases: ss perms wordpress config, ss perms wp config, ss perms wp-config ###############
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-WordPress-Config: Message (Begin Script) #############################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-wordpress-config: Resets file and user permissions for WordPress (CMS) configuration files... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-WordPress-Config: Reset Permissions (WordPress Config) ###############################
+####################################################################################################
+
+## here we briefly reset permissions for the wp-config.php file and related dirs only ##
+## keep in mind that general WordPress core and other files are not affected ##
+
+## reset permissions for production (always enabled) ##
+chown www-data:wordpress "$PATH_WP_CONFIG_PHP" ## must be www-data:wordpress
+chmod 0440 "$PATH_WP_CONFIG_PHP" ## must be 0440
+
+## reset permissions for staging (unless disabled in ss-config) ##
+if [[ "$STAGING_SITE" != "false" ]]; then 
+    chown www-data:wordpress /var/www/html/staging/wp-config.php ## must be www-data:wordpress
+    chmod 0440 /var/www/html/staging/wp-config.php ## must be 0440
+fi
+
+## reset permissions for dev (unless disabled in ss-config) ##
+if [[ "$DEV_SITE" != "false" ]]; then 
+    chown www-data:wordpress /var/www/html/dev/wp-config.php ## must be www-data:wordpress
+    chmod 0440 /var/www/html/dev/wp-config.php ## must be 0440
+fi
+
+####################################################################################################
+#### SS-Perms-WordPress-Config: Touch Timestamp File (End Script) ##################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_WORDPRESS_CONFIG"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: 
+
+## SS_EOF

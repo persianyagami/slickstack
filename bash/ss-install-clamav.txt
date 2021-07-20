@@ -1,0 +1,107 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-install-clamav.txt ##############################
+#### path: /var/www/ss-install-clamav ##############################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the entire ClamAV module for SlickStack servers (idempotent) ##############
+#### module version: ClamAV 0.102.x ################################################################
+#### sourced by: ss-install ########################################################################
+#### bash aliases: ss install clamav ###############################################################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Install-ClamAV: Message (Begin Script) #####################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-install-clamav: Reinstalls the entire ClamAV module for SlickStack servers (idempotent)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Install-ClamAV: Cleanup Temporary Files ####################################################
+####################################################################################################
+
+## delete tmp files ##
+# n/a
+
+####################################################################################################
+#### SS-Install-ClamAV: Install ClamAV (Ubuntu Packages) ###########################################
+####################################################################################################
+
+## this will install ClamAV for occassional malware logging: /var/www/logs/clamav.log ##
+## keep in mind that infected files are not automatically cleaned or deleted ##
+
+## for Ubuntu 16.04 LTS only ##
+if [[ "${UBUNTU_VERSION}" = "16.04" ]]; then
+    apt install clamav clamav-daemon
+    # incomplete... research
+fi
+
+## for Ubuntu 18.04 LTS only ##
+if [[ "${UBUNTU_VERSION}" = "18.04" ]]; then
+    apt install clamav
+    freshclam ## updates malware cache after clamav package installed
+fi
+
+## for Ubuntu 20.04 LTS only ##
+if [[ "${UBUNTU_VERSION}" = "20.04" ]]; then
+    apt install clamav
+    # freshclam ## (no longer needed as this runs automatically)
+fi
+
+## NEED TO EXPAND AND IMPROVE ##
+
+# sed -i '/UpdateLogFile/c\UpdateLogFile /var/www/logs/clamav.log' /etc/clamav/freshclam.conf
+sed -i '/LogRotate/c\LogRotate true' /etc/clamav/freshclam.conf
+sed -i '/Checks/c\Checks 2' /etc/clamav/freshclam.conf
+sed -i '/MaxAttempts/c\MaxAttempts 3' /etc/clamav/freshclam.conf
+
+####################################################################################################
+#### SS-Install-ClamAV: Reset Permissions (ClamAV) #################################################
+####################################################################################################
+
+## run ss-perms-clamav ##
+source "$PATH_SS_PERMS_CLAMAV"
+
+####################################################################################################
+#### SS-Install-ClamAV: Cleanup Temporary Files ####################################################
+####################################################################################################
+
+## delete tmp files ##
+# n/a
+
+####################################################################################################
+#### SS-Install-ClamAV: Touch Timestamp File (End Script) ##########################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_INSTALL_CLAMAV"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://askubuntu.com/questions/1214151/ubuntu-clamav-freshclam-cant-download-main-cvd
+## Ref: https://medium.com/@kainikhil/installing-clamav-and-clam-f4d26d8150c4
+
+## SS_EOF

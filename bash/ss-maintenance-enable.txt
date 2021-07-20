@@ -1,0 +1,79 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-maintenance-enable.txt ##########################
+#### path: /var/www/ss-maintenance-enable ##########################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Generates maintenance.html that Nginx parses to temporarily disable frontend #########
+#### module version: Nginx 1.18.x ##################################################################
+#### sourced by: n/a ###############################################################################
+#### bash aliases: ss maintenance enable, ss maintenance on, ss main enable [on] ###################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Maintenance-Enable: Message (Begin Script) #################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-maintenance-enable: Generates maintenance.html that Nginx parses to temporarily disable frontend... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Maintenance-Enable: Enable Maintenance Mode (Nginx) ########################################
+####################################################################################################
+
+## retrieve latest maintenance.html file (if not exists) ##
+if [[ ! -f "/var/www/meta/maintenance.html" ]]; then 
+  wget -O /tmp/maintenance.html http://mirrors.slickstack.io/nginx/maintenance.txt
+  cp /tmp/maintenance.html /var/www/meta/maintenance.html
+  chown www-data:www-data /var/www/meta/maintenance.html
+  chmod 0644 /var/www/meta/maintenance.html ## 0644
+fi
+
+## cleanup old ones ##
+rm /var/www/html/maintenance.html*
+
+## copy (install) maintenance file to web root ##
+cp /var/www/meta/maintenance.html /var/www/html/maintenance.html
+
+## reset perms ##
+chown www-data:www-data /var/www/html/maintenance.html
+chmod 0644 /var/www/html/maintenance.html ## 0644
+
+####################################################################################################
+### SS-Maintenance-Enable: Purge Cache (Nginx) #####################################################
+####################################################################################################
+
+## run ss-purge-nginx ##
+source /var/www/ss-purge-nginx
+
+####################################################################################################
+#### SS-Maintenance-Enable: Touch Timestamp File (End Script) ######################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_MAINTENANCE_ENABLE"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://stackoverflow.com/questions/5600448/how-to-setup-custom-503-error-page-in-nginx-that-intercepts-all-requests
+
+## SS_EOF

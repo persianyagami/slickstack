@@ -1,0 +1,61 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-clamav.txt ################################
+#### path: /var/www/ss-perms-clamav ################################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets all file and user permissions for the ClamAV module ###########################
+#### module version: ClamAV 0.102.x ################################################################
+#### sourced by: ss-perms, ss-install-clamav #######################################################
+#### bash aliases: ss perms clamav, ss perms clam ##################################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-ClamAV: Message (Begin Script) #######################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-clamav: Resets all file and user permissions for the ClamAV module... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-ClamAV: Reset Permissions (ClamAV) ###################################################
+####################################################################################################
+
+## ensure log files exist ##
+if [ ! -f "/var/www/logs/clamav.log" ]; then touch "/var/www/logs/clamav.log"; fi
+
+## reset permissions ##
+chown clamav:clamav /var/www/logs/clamav*.log*
+chmod 0644 /var/www/logs/clamav*.log* ## 6755 should also work
+
+####################################################################################################
+#### SS-Perms-ClamAV: Touch Timestamp File (End Script) ############################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_CLAMAV"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: 
+
+## SS_EOF

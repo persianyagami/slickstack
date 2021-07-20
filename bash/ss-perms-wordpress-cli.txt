@@ -1,0 +1,63 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-wordpress-cli.txt #########################
+#### path: /var/www/ss-perms-wordpress-cli #########################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets all file and user permissions across the entire WP-CLI module #################
+#### module version: WordPress 5.5.x ###############################################################
+#### sourced by: ss-perms, ss-install-wordpress-cli ################################################
+#### bash aliases: ss perms wordpress cli, ss perms wp cli, ss perms wp-cli ########################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-WordPress-CLI: Message (Begin Script) ################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-wordpress-cli: Resets all file and user permissions across the entire WP-CLI module... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-WordPress-CLI: Reset Permissions (WP-CLI) ############################################
+####################################################################################################
+
+## always run WP-CLI as the www-data user (and allow SFTP user to run it) ##
+## reset permissions ##
+chown www-data:www-data /usr/local/bin/wp
+chown www-data:www-data /var/www/meta/wp-cli.yml
+chown www-data:www-data /var/www/meta/.wp-completion
+chmod 0755 /usr/local/bin/wp
+chmod 0755 /var/www/meta/wp-cli.yml
+chmod 0755 /var/www/meta/.wp-completion
+
+####################################################################################################
+#### SS-Perms-WordPress-CLI: Touch Timestamp File (End Script) #####################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_WORDPRESS_CLI"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref:  https://github.com/wp-cli/wp-cli/issues/4797
+
+## SS_EOF

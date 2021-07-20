@@ -1,0 +1,76 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-ubuntu-ssh.txt ############################
+#### path: /var/www/ss-perms-ubuntu-ssh ############################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets all file and user permissions for the Ubuntu SSH daemon and SSH keys ##########
+#### module version: Ubuntu 20.04 LTS ##############################################################
+#### sourced by: ss-perms, ss-install-ubuntu-ssh ###################################################
+#### bash aliases: ss perms ubuntu ssh, ss perms ssh ###############################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### TABLE OF CONTENTS #############################################################################
+####################################################################################################
+
+## A. Message (Begin Script)
+## B. Reset Permissions (SSH)
+## C. Touch Timestamp File (End Script)
+
+####################################################################################################
+#### A. SS-Perms-Ubuntu-SSH: Message (Begin Script) ################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-ubuntu-ssh: Resets all file and user permissions for the Ubuntu SSH daemon and SSH keys... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### B. SS-Perms-Ubuntu-SSH: Reset Permissions (SSH) ###############################################
+####################################################################################################
+
+## ssh keys ##
+mkdir /var/www/meta/shell
+chown root:root /var/www/meta/shell ## must be root:root (centralized keys)
+chmod 0755 /var/www/meta/shell ## must be 0755
+touch /var/www/meta/shell/authorized_keys
+chown root:root /var/www/meta/shell/authorized_keys ## must be root:root (centralized keys)
+chmod 0644 /var/www/meta/shell/authorized_keys ## must be 0644
+
+#### sshd daemon ##
+chown root:root /etc/ssh/sshd_config ## must be root:root
+chmod 0644 /etc/ssh/sshd_config ## 0644 Ubuntu default
+
+####################################################################################################
+#### C. SS-Perms-Ubuntu-SSH: Touch Timestamp File (End Script) #####################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_UBUNTU_SSH"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://askubuntu.com/questions/466549/bash-home-user-ssh-authorized-keys-no-such-file-or-directory
+## Ref: https://serverfault.com/questions/313465/is-a-central-location-for-authorized-keys-a-good-idea
+## Ref: https://github.com/littlebizzy/slickstack/issues/81
+
+## SS_EOF

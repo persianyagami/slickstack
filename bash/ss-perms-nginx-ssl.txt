@@ -1,0 +1,94 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-nginx-ssl.txt #############################
+#### path: /var/www/ss-perms-nginx-ssl #############################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets all file and user permissions for SSL certs and related Nginx files ###########
+#### module version: Nginx 1.18.x, OpenSSL 1.1.1x, Certbot 0.40.x ##################################
+#### sourced by: ss-perms, ss-encrypt-openssl, ss-encrypt-certbot, ss-install-nginx-ssl ############
+#### bash aliases: ss perms nginx ssl, ss perms ssl ################################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-Nginx-SSL: Message (Begin Script) ####################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-nginx-ssl: Resets all file and user permissions for SSL certs and related Nginx files... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-Nginx-SSL: Reset Permissions (SSL Certs + Related Nginx Files) #######################
+####################################################################################################
+
+## make dirs ##
+mkdir /var/www/certs
+mkdir /var/www/certs/keys
+mkdir /var/www/html/.well-known
+mkdir /var/www/html/.well-known/acme-challenge
+
+## reset permissions ##
+chown -R $SFTP_USER:www-data /var/www/html/.well-known ## must be $SFTP_USER:www-data
+chmod 0775 /var/www/html/.well-known ## must be 0775
+
+## reset permissions ##
+mkdir /var/www/certs
+mkdir /var/www/certs/keys
+mkdir /var/www/html/.well-known
+mkdir /var/www/html/.well-known/acme-challenge
+
+chown root:root /var/www/certs ## must be root:root
+chown root:root /var/www/certs/keys ## must be root:root
+chown -R $SFTP_USER:www-data /var/www/html/.well-known ## must be $SFTP_USER:www-data
+chmod 0755 /var/www/certs ## must be 0755
+chmod 0700 /var/www/certs/keys ## must be 0700
+chmod 0644 /var/www/certs/*.crt ## public certs/dhparam should be 0644
+chmod 0644 /var/www/certs/*.pem ## public certs/dhparam should be 0644
+chmod 0600 /var/www/certs/keys/*.key ## must be 0600
+chmod 0600 /var/www/certs/keys/*.pem ## must be 0600
+chmod 0775 /var/www/html/.well-known
+
+## reset permissions ##
+mkdir /var/www/certs
+mkdir /var/www/certs/keys
+
+chown root:root /var/www/certs ## must be root:root
+chown root:root /var/www/certs/keys ## must be root:root
+
+chmod 0755 /var/www/certs ## must be 0755
+chmod 0700 /var/www/certs/keys ## must be 0700
+chmod 0644 /var/www/certs/slickstack.crt ## public certs should be 0644
+chmod 0600 /var/www/certs/keys/slickstack.key ## must be 0600
+
+
+####################################################################################################
+#### SS-Perms-Nginx-SSL: Touch Timestamp File (End Script) #########################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_NGINX_SSL"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: 
+
+## SS_EOF

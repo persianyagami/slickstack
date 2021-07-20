@@ -1,0 +1,74 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-install-mediawiki-config.txt ####################
+#### path: /var/www/ss-install-mediawiki-config ####################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the MediaWiki module config files based on ss-config (idempotent) #########
+#### module version: MediaWiki x.x.x ###############################################################
+#### sourced by: ss-install ########################################################################
+#### bash aliases: ss install mediawiki config #####################################################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Install-MediaWiki-Config: Message (Begin Script) ###########################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-install-mediawiki-config: Reinstalls the MediaWiki module config files based on ss-config (idempotent)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Install-MediaWiki-Config: Cleanup Temporary Files ##########################################
+####################################################################################################
+
+## delete tmp files ##
+# n/a
+
+####################################################################################################
+#### SS-Install-MediaWiki-Config: Reset Permissions (MediaWiki Config) #############################
+####################################################################################################
+
+## run ss-perms-mediawiki-config ##
+source "$PATH_SS_PERMS_MEDIAWIKI_CONFIG"
+
+####################################################################################################
+#### SS-Install-MediaWiki-Config: Cleanup Temporary Files ##########################################
+####################################################################################################
+
+## delete tmp files ##
+# n/a
+
+####################################################################################################
+#### SS-Install-MediaWiki-Config: Touch Timestamp File (End Script) ################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_INSTALL_MEDIAWIKI_CONFIG"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: 
+
+## SS_EOF

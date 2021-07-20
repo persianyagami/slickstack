@@ -1,0 +1,71 @@
+<?php
+/** ********************************************************************************************* */
+/** author: SlickStack ************************************************************************** */
+/** link: https://slickstack.io ***************************************************************** */
+/** mirror: http://mirrors.slickstack.io/modules/php-fpm/ss-constants.txt *********************** */
+/** path: n/a (boilerplate) ********************************************************************* */
+/** destination: /var/www/meta/ss-constants.php (after install) ********************************* */
+/** purpose: Saves various SlickStack environment variables as PHP defined constants ************ */
+/** module version: PHP-FPM 7.4.x *************************************************************** */
+/** sourced by: wp-config.php ******************************************************************* */
+/** bash aliases: n/a *************************************************************************** */
+/** ********************************************************************************************* */
+
+/** DO NOT MODIFY SS-CONSTANTS DIRECTLY AS CHANGES WILL BE OVERWRITTEN BY SLICKSTACK */
+
+/** ********************************************************************************************* */
+/** SS-Constants.php: General SlickStack Constants ********************************************** */
+/** ********************************************************************************************* */
+
+/** below are some general PHP constants that reflect SlickStack settings and features */
+/** they are set here (not wp-config.php) to prevent clients from changing them */
+
+// ss general
+define( 'SS_BUILD', '@SS_BUILD' );
+define( 'SS_DASHBOARD', @SS_DASHBOARD ); // boolean
+define( 'SS_PLUGIN_BLACKLIST', @SS_PLUGIN_BLACKLIST ); // boolean
+
+// wordpress
+define( 'WP_CRON_METHOD', '@WP_CRON_METHOD' );
+define( 'WP_CRON_INTERVAL', '@WP_CRON_INTERVAL' );
+
+// system information
+define('SYSTEM_VENDOR', '@SYSTEM_VENDOR');
+define('SYSTEM_VIRTUAL', '@SYSTEM_VIRTUAL');
+define('SYSTEM_LINUX_KERNEL', '@SYSTEM_LINUX_KERNEL');
+define('SYSTEM_OS_PRETTY_NAME', '@SYSTEM_OS_PRETTY_NAME');
+define('SYSTEM_CPU_CORES', '@SYSTEM_CPU_CORES');
+define('SYSTEM_DISK_FREE', '@SYSTEM_DISK_FREE');
+define('SYSTEM_DISK_TOTAL', '@SYSTEM_DISK_TOTAL');
+define('SYSTEM_MYSQL_SIZE', '@SYSTEM_MYSQL_SIZE');
+define('SYSTEM_MYSQL_VERSION', '@SYSTEM_MYSQL_VERSION');
+define('SYSTEM_IPV4_ADDRESS', '@SYSTEM_IPV4_ADDRESS');
+define('SYSTEM_IPV6_ADDRESS', '@SYSTEM_IPV6_ADDRESS');
+define('SYSTEM_HOSTNAME', '@SYSTEM_HOSTNAME');
+define('SYSTEM_PHP_VERSION', '@SYSTEM_PHP_VERSION');
+define('SYSTEM_PHP_EXTENSIONS', '@SYSTEM_PHP_EXTENSIONS');
+define('SYSTEM_SERVER_SOFTWARE', '@SYSTEM_SERVER_SOFTWARE');
+
+// ss timestamps last accessed
+define('LAST_TIMESTAMP_00_CRONTAB', '@LAST_TIMESTAMP_00_CRONTAB');
+define('LAST_TIMESTAMP_01_CRON_OFTEN', '@LAST_TIMESTAMP_01_CRON_OFTEN');
+define('LAST_TIMESTAMP_02_CRON_REGULAR', '@LAST_TIMESTAMP_02_CRON_REGULAR');
+define('LAST_TIMESTAMP_03_CRON_QUARTER_HOURLY', '@LAST_TIMESTAMP_03_CRON_QUARTER_HOURLY');
+define('LAST_TIMESTAMP_04_CRON_HALF_HOURLY', '@LAST_TIMESTAMP_04_CRON_HALF_HOURLY');
+define('LAST_TIMESTAMP_05_CRON_HOURLY', '@LAST_TIMESTAMP_05_CRON_HOURLY');
+define('LAST_TIMESTAMP_06_CRON_QUARTER_DAILY', '@LAST_TIMESTAMP_06_CRON_QUARTER_DAILY');
+define('LAST_TIMESTAMP_07_CRON_HALF_DAILY', '@LAST_TIMESTAMP_07_CRON_HALF_DAILY');
+define('LAST_TIMESTAMP_08_CRON_DAILY', '@LAST_TIMESTAMP_08_CRON_DAILY');
+define('LAST_TIMESTAMP_09_CRON_HALF_WEEKLY', '@LAST_TIMESTAMP_09_CRON_HALF_WEEKLY');
+define('LAST_TIMESTAMP_10_CRON_WEEKLY', '@LAST_TIMESTAMP_10_CRON_WEEKLY');
+define('LAST_TIMESTAMP_11_CRON_HALF_MONTHLY', '@LAST_TIMESTAMP_11_CRON_HALF_MONTHLY');
+define('LAST_TIMESTAMP_12_CRON_MONTHLY', '@LAST_TIMESTAMP_12_CRON_MONTHLY');
+define('LAST_TIMESTAMP_13_CRON_SOMETIMES', '@LAST_TIMESTAMP_13_CRON_SOMETIMES');
+
+/** ********************************************************************************************* */
+/** SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ************* */
+/** ********************************************************************************************* */
+
+// Ref: 
+
+// SS_EOF

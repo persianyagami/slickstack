@@ -7,7 +7,9 @@
 {% seo %}
   
   <link rel="stylesheet" href="{{ "/assets/css/style.css?v=" | append: site.github.build_revision | relative_url }}">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu:400,400i,700&display=swap">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.1/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
 </head>
   
@@ -21,34 +23,47 @@
   <div id="sidebar">
     <h2><span class="logo"><i class="fas fa-bolt"></i><i class="fas fa-bolt"></i></span><a href="https://mirrors.slickstack.io">SlickStack</a></h2>
     <p>{{ site.description | default: site.github.project_tagline }}</p>
-    
-    <div class="snippet-install"><pre><code>wget -O ss slick.fyi && bash ss</code></pre></div>
-    
+
     <ul class="chat-rooms">
-        <li><a href="https://join.skype.com/NdpqKrN2BHdN" target="_blank" rel="noopener noreferrer"><i class="fab fa-skype"></i>Skype group chat</a></li>
-        <li><a href="https://discord.gg/nGskJdg" target="_blank" rel="noopener noreferrer"><i class="fab fa-discord"></i>Discord server</a><br></li>
-        <li><a href="https://spectrum.chat/slickstack" target="_blank" rel="noopener noreferrer"><i class="fab fa-github"></i>Spectrum (GitHub) chat</a></li>
-        <li><a href="https://www.facebook.com/groups/slickstack/" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook"></i>Facebook group</a></li>
+	<li><a href="https://github.com/littlebizzy/slickstack/issues/new"><i class="fab fa-github"></i>Report an issue (GitHub)</a></li>
     </ul>
     
-    <p class="sidebar"><a href="https://www.littlebizzy.com/members" target="_blank" rel="noopener noreferrer">Become a Member</a> to get support via email or your company's Slack channel, and/or to be listed as a sponsor (optional).</p>
-        
-<div class="snippet-structure">/var/www/00-crontab<br>
-/var/www/01-cron-often<br>
-/var/www/02-cron-regular<br>
-/var/www/03-cron-quarter-hourly<br>
-/var/www/04-cron-half-hourly<br>
-/var/www/05-cron-hourly<br>
-/var/www/06-cron-quarter-daily<br>
-/var/www/07-cron-half-daily<br>
-/var/www/08-cron-daily<br>
-/var/www/09-cron-half-weekly<br>
-/var/www/10-cron-weekly<br>
-/var/www/11-cron-half-monthly<br>
-/var/www/12-cron-monthly<br>
-/var/www/13-cron-sometimes<br>
-/var/www/cache/<br>
+<div class="snippet-structure">/var/www/cache/<br>
+/var/www/cache/fcgi/<br>
+/var/www/cache/opcache/<br>
+/var/www/certs/<br>
+/var/www/certs/cert.pem<br>
+/var/www/certs/chain.pem<br>
+/var/www/certs/fullchain.pem<br>
+/var/www/certs/slickstack.crt<br>
+/var/www/certs/keys/<br>
+/var/www/certs/keys/privkey.pem<br>
+/var/www/certs/keys/slickstack.key<br>
+/var/www/crons/<br>
+/var/www/crons/00-crontab<br>
+/var/www/crons/01-cron-often<br>
+/var/www/crons/02-cron-regular<br>
+/var/www/crons/03-cron-quarter-hourly<br>
+/var/www/crons/04-cron-half-hourly<br>
+/var/www/crons/05-cron-hourly<br>
+/var/www/crons/06-cron-quarter-daily<br>
+/var/www/crons/07-cron-half-daily<br>
+/var/www/crons/08-cron-daily<br>
+/var/www/crons/09-cron-half-weekly<br>
+/var/www/crons/10-cron-weekly<br>
+/var/www/crons/11-cron-half-monthly<br>
+/var/www/crons/12-cron-monthly<br>
+/var/www/crons/13-cron-sometimes<br>
+/var/www/crons/custom/<br>
 /var/www/html/<br>
+/var/www/logs/<br>
+/var/www/logs/clamav.log<br>
+/var/www/logs/error.log<br>
+/var/www/logs/mysql-error.log<br>
+/var/www/logs/mysql-gen.log<br>
+/var/www/logs/mysql-slow.log<br>
+/var/www/logs/nginx.log<br>
+/var/www/logs/redis.log<br>
 /var/www/logs/<br>
 /var/www/meta/<br>
 /var/www/ss-check<br>
@@ -140,18 +155,14 @@
 /var/www/ss-worker</div>
     
     <div id="social">
-        <a href="https://slickstack.io" target="_blank" rel="noopener noreferrer"><i class="fas fa-globe"></i></a>
-        <a href="https://github.com/littlebizzy/slickstack" target="_blank" rel="noopener noreferrer"><i class="fab fa-github"></i></a>
-        <a href="https://www.facebook.com/slickstack" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-f"></i></a>
-        <i class="fab fa-twitter"></i>
-        <a href="https://www.youtube.com/channel/UClD6OJy-Sg45nUBoAfmccJg" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube"></i></a>
-        <a href="https://www.linkedin.com/company/slickstack" target="_blank" rel="noopener noreferrer"><i class="fab fa-linkedin-in"></i></a>
+        <a href="https://slickstack.io" target="_blank"><i class="fas fa-globe"></i></a>
+        <a href="https://github.com/littlebizzy/slickstack"><i class="fab fa-github"></i></a>
+        <a href="https://www.youtube.com/channel/UClD6OJy-Sg45nUBoAfmccJg"><i class="fab fa-youtube"></i></a>
+        <a href="https://www.linkedin.com/company/slickstack"><i class="fab fa-linkedin-in"></i></a>
     </div><!-- social -->
     
     <br><br>
-    
-    <p><a href="https://github.com/littlebizzy/slickstack/issues/new" target="_blank" rel="noopener noreferrer">Report an issue (bug)</a></p>
-  
+
     <div id="copyright">&copy; 2020 LittleBizzy | GPLv3 License</div>
     
     <div class="clear"></div>

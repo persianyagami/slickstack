@@ -1,0 +1,81 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-install-mediawiki-core.txt ######################
+#### path: /var/www/ss-install-mediawiki-core ######################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the MediaWiki module (CMS) package and non-config files (idempotent) ######
+#### module version: MediaWiki x.x.x ###############################################################
+#### sourced by: ss-install ########################################################################
+#### bash aliases: ss install mediawiki core #######################################################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Install-MediaWiki-Core: Message (Begin Script) #############################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-install-mediawiki-core: Reinstalls the MediaWiki module (CMS) package and non-config files (idempotent)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Install-MediaWiki-Core: Cleanup Temporary Files ############################################
+####################################################################################################
+
+## delete tmp files ##
+# n/a
+
+####################################################################################################
+#### SS-Install-MediaWiki-Core: Install Ubuntu Utils ###############################################
+####################################################################################################
+
+## run ss-install-ubuntu-utils ##
+source /var/www/ss-install-ubuntu-utils
+
+####################################################################################################
+#### SS-Install-MediaWiki-Core: Reset Permissions (MediaWiki Core) #################################
+####################################################################################################
+
+## run ss-perms-mediawiki-core ##
+source "$PATH_SS_PERMS_MEDIAWIKI_CORE"
+
+####################################################################################################
+#### SS-Install-MediaWiki-Core: Cleanup Temporary Files ############################################
+####################################################################################################
+
+## delete tmp files ##
+# n/a
+
+####################################################################################################
+#### SS-Install-MediaWiki-Core: Touch Timestamp File (End Script) ##################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_INSTALL_MEDIAWIKI_CORE"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: 
+
+## SS_EOF

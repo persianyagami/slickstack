@@ -1,0 +1,110 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-install-ubuntu-crontab.txt ######################
+#### path: /var/www/ss-install-ubuntu-crontab ######################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the Ubuntu (OS) root crontab for SlickStack servers (idempotent) ##########
+#### module version: Ubuntu 20.04 LTS ##############################################################
+#### sourced by: ss-install ########################################################################
+#### bash aliases: ss install ubuntu crontab, ss install crontab ###################################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Message (Begin Script) #############################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-install-ubuntu-crontab: Reinstalls the Ubuntu (OS) root crontab for SlickStack servers (idempotent)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Cleanup Temporary Files ############################################
+####################################################################################################
+
+## delete tmp files ##
+rm /tmp/*crontab*
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Install Cron (If Not Exists) #######################################
+####################################################################################################
+
+## the cron package should already be installed by default if you are using Ubuntu Linux ##
+## we include this here for extra surety to ensure cron exists before proceeding ##
+
+## install cron (if not exists) ##
+apt install cron
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Install SlickStack (Root) Crontab ##################################
+####################################################################################################
+
+## here we forcefully reinstall the crontab based on the SlickStack boilerplate file ##
+## the random string generated helps Linux to realize the file has been modifed ##
+
+# reinstall root crontab ##
+cp /var/www/crons/00-crontab /tmp/00-crontab
+sed -i "s/@RANDOM_STRING/$(openssl rand -hex 12)/g" /tmp/00-crontab
+sudo crontab /tmp/00-crontab
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Reset Permissions (Ubuntu Crontab) #################################
+####################################################################################################
+
+## run ss-perms-ubuntu-crontab ##
+source "$PATH_SS_PERMS_UBUNTU_CRONTAB"
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Restart Services (Cron) ############################################
+####################################################################################################
+
+## reload cron ##
+/etc/init.d/cron reload ## reload better than restart
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Cleanup Temporary Files ############################################
+####################################################################################################
+
+## delete tmp files ##
+rm /tmp/*crontab*
+
+####################################################################################################
+#### SS-Install-Ubuntu-Crontab: Touch Timestamp File (End Script) ##################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_INSTALL_UBUNTU_CRONTAB"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://linuxize.com/post/bash-functions/
+## Ref: https://www.cyberciti.biz/faq/unix-linux-appleosx-bsd-shell-appending-date-to-filename/
+## Ref: https://wordpress.stackexchange.com/questions/199725/triggering-cron-by-calling-wp-cron-php-on-the-command-line-rather-than-with-wget
+## Ref: https://help.ubuntu.com/community/CronHowto
+## Ref: https://www.rosehosting.com/blog/ubuntu-crontab/
+## Ref: https://linuxize.com/post/scheduling-cron-jobs-with-crontab/
+## Ref: https://www.rosehosting.com/blog/ubuntu-crontab/
+## Ref: https://www.digitalocean.com/community/tutorials/how-to-use-cron-to-automate-tasks-ubuntu-1804
+
+## SS_EOF

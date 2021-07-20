@@ -1,0 +1,58 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-ubuntu-bash.txt ###########################
+#### path: /var/www/ss-perms-ubuntu-bash ###########################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets file and user permissions for Bash run commands and related files #############
+#### module version: Ubuntu 20.04 LTS ##############################################################
+#### sourced by: ss-perms, ss-install-ubuntu-bash ##################################################
+#### bash aliases: ss perms ubuntu bash, ss perms bash #############################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Bash: Message (Begin Script) ##################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-ubuntu-bash: Resets file and user permissions for Bash run commands and related files... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Bash: Reset Permissions (Ubuntu Bash) #########################################
+####################################################################################################
+
+## reset permissions ##
+chown root:root /var/www/meta/.bash-aliases
+chmod 0755 /var/www/meta/.bash-aliases
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Bash: Touch Timestamp File (End Script) #######################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_UBUNTU_BASH"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://www.alexgeorgiou.gr/wp-cli-www-data-user-permissions-linux/
+
+## SS_EOF

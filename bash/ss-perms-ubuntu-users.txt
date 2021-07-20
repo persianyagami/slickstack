@@ -1,0 +1,70 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-ubuntu-users.txt ##########################
+#### path: /var/www/ss-perms-ubuntu-users ##########################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets all file and user permissions for Ubuntu system users (sudo, SFTP, etc) #######
+#### module version: Ubuntu 20.04 LTS ##############################################################
+#### sourced by: ss-install-ubuntu-users, ss-perms #################################################
+#### bash aliases: ss perms ubuntu users, ss perms users ###########################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Users: Message (Begin Script) #################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-ubuntu-users: Resets all file and user permissions for Ubuntu system users (sudo, SFTP, etc)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Users: Reset Permissions (Ubuntu Users) #######################################
+####################################################################################################
+
+## in the future change group name to slickstack (not wordpress) ##
+
+## ensure group exists ##
+groupadd -f wordpress
+
+## add SFTP_USER and www-data to wordpress group + add SFTP_USER to www-data group ##
+usermod -a -G wordpress "$SFTP_USER"
+usermod -a -G wordpress www-data
+usermod -a -G www-data "$SFTP_USER"
+
+## reset permissions ##
+chown root:root /etc/sudoers ## must be root:root
+chmod 0440 /etc/sudoers ## 0440 Ubuntu default
+
+####################################################################################################
+#### SS-Perms-Ubuntu-Users: Touch Timestamp File (End Script) ######################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_UBUNTU_USERS"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://unix.stackexchange.com/questions/55564/addgroup-vs-groupadd
+## Ref: https://unix.stackexchange.com/questions/145348/short-simple-command-to-create-a-group-if-it-doesnt-already-exist
+## Ref: https://www.howtogeek.com/50787/add-a-user-to-a-group-or-second-group-on-linux/
+
+## SS_EOF

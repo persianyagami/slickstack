@@ -1,0 +1,65 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-perms-nginx-config.txt ##########################
+#### path: /var/www/ss-perms-nginx-config ##########################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Resets file and user permissions for Nginx module configuration files ################
+#### module version: Nginx 1.18.x ##################################################################
+#### sourced by: ss-perms, ss-install-nginx ########################################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Perms-Nginx-Config: Message (Begin Script) #################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-perms-nginx-config: Resets file and user permissions for Nginx module configuration files... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Perms-Nginx: Reset Permissions (Nginx) #####################################################
+####################################################################################################
+
+## although most permissions for Nginx files are okay by default we also reset them here ##
+## in general everything should be owned by root and chmod should be set to 0700 ##
+
+## nginx.conf ##
+chown root:root /etc/nginx/nginx.conf
+
+## fastcgi.conf ##
+chown root:root /etc/nginx/fastcgi.conf
+
+## server blocks ##
+chown root:root /var/www/sites/*
+
+####################################################################################################
+#### SS-Perms-Nginx-Config: Touch Timestamp File (End Script) ######################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_PERMS_NGINX_CONFIG"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: 
+
+## SS_EOF

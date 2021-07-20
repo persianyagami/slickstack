@@ -1,0 +1,149 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: https://mirrors.slickstack.io/bash/ss-stack-overview.txt ##############################
+#### path: /var/www/ss-stack-overview ##############################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Displays a brief overview of critical settings (domains, users, passwords, etc) ######
+#### module version: Ubuntu 20.04 LTS ##############################################################
+#### sourced by: ss-install, ss-update #############################################################
+#### bash aliases: ss overview, ss status, ss summary ##############################################
+####################################################################################################
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### SS-Overview: Message (Begin Script) ###########################################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be noticed by sudo users who manually call ss core bash scripts ##
+
+## echo message ##
+echo -e "${PURPLE}Running ss-overview: Displays a brief overview of critical settings (domains, users, passwords, etc)... ${NOCOLOR}"
+sleep "$SLEEP_MESSAGE_BEGIN"
+
+####################################################################################################
+#### SS-Overview: Display Critical SlickStack Settings #############################################
+####################################################################################################
+
+## the shell will echo the most important ss-config settings (and beyond) currently used ##
+## this allows you to easily copy/paste for your records or for your clients ##
+
+## display critical ss-config variables ##
+echo -e ""
+echo -e "${LIGHTGREEN}###########################################################################${NOCOLOR}"
+echo -e "${LIGHTGREEN}#### Congrats! Here are your current SlickStack settings: #################${NOCOLOR}"
+echo -e "${LIGHTGREEN}###########################################################################${NOCOLOR}"
+echo -e ""
+echo -e "${DARKGREEN}SlickStack build: ${LIGHTGREEN}${BOLD}$SS_BUILD${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}IPv4: ${LIGHTGREEN}${BOLD}$IPV4_ADDRESS${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}IPv6: ${LIGHTGREEN}${BOLD}$IPV6_ADDRESS${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}Site TLD: ${LIGHTGREEN}${BOLD}$SITE_TLD${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}Site domain: ${LIGHTGREEN}${BOLD}https://$SITE_DOMAIN${NORMAL}${DARKGREEN} (live website URL)${NOCOLOR}"
+echo -e "${DARKGREEN}Site noindex: ${LIGHTGREEN}${BOLD}$SITE_NOINDEX${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}Staging site: ${LIGHTGREEN}${BOLD}$STAGING_SITE${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}Dev site: ${LIGHTGREEN}${BOLD}$DEV_SITE${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}Sudo user: ${LIGHTGREEN}${BOLD}$SUDO_USER${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}Sudo password: ${LIGHTGREEN}${BOLD}$SUDO_PASSWORD${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}SFTP user: ${LIGHTGREEN}${BOLD}$SFTP_USER${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}SFTP password: ${LIGHTGREEN}${BOLD}$SFTP_PASSWORD${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}SSH/SFTP port: ${LIGHTGREEN}${BOLD}$SSH_PORT${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}SSH keys: ${LIGHTGREEN}${BOLD}$SSH_KEYS${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}DB name: ${LIGHTGREEN}${BOLD}$DB_NAME${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}DB user: ${LIGHTGREEN}${BOLD}$DB_USER${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}DB user password: ${LIGHTGREEN}${BOLD}$DB_PASSWORD${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}DB admin user (alt-root user for Adminer, etc): ${LIGHTGREEN}${BOLD}admin@127.0.0.1${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}DB admin user password: ${LIGHTGREEN}${BOLD}$DB_PASSWORD_ROOT${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}DB host: ${LIGHTGREEN}${BOLD}$DB_HOST${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}DB prefix: ${LIGHTGREEN}${BOLD}$DB_PREFIX${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}WP Multisite: ${LIGHTGREEN}${BOLD}$WP_MULTISITE${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}WP Multisite subdomains: ${LIGHTGREEN}${BOLD}$WP_MULTISITE_SUBDOMAINS${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}WP Multisite domain mapping: ${LIGHTGREEN}${BOLD}$WP_MULTISITE_DOMAIN_MAPPING${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}CloudFlare API key: ${LIGHTGREEN}${BOLD}$CLOUDFLARE_API_KEY${NORMAL}${NOCOLOR}"
+echo -e "${DARKGREEN}CloudFlare API email: ${LIGHTGREEN}${BOLD}$CLOUDFLARE_API_EMAIL${NORMAL}${NOCOLOR}"
+echo -e ""
+echo -e "${DARKGREEN}Pro tip: Use the bash alias ${LIGHTGREEN}${BOLD}ss${NORMAL}${DARKGREEN} to save keystrokes on CLI commands!${NORMAL}${NOCOLOR}"
+echo -e ""
+
+if [[ "$SSH_KEYS" == "true" ]] && [[ -f "$PATH_SSH_PRIVATE_KEY_FILE" ]]; then
+    echo -e ""
+    echo -e "${YELLOW}Below is your private SSH key (copy to your local computer): ${NOCOLOR}"
+    echo -e ""
+    cat "$PATH_SSH_PRIVATE_KEY_FILE"
+    echo -e ""
+    echo -e "${YELLOW}This private key file (id_rsa) will be deleted on next cleanup cycle... COPY IT NOW before it disappears! ${NOCOLOR}"
+fi
+
+####################################################################################################
+#### SS-Overview: Notify If Newer SlickStack Build Exists ##########################################
+####################################################################################################
+
+## below we briefly inspect the latest ss-config template from official SlickStack mirrors ##
+## if it appears that the local server is outdated then a message with appear here ##
+
+## delete leftover files ##
+rm /tmp/ss-config*
+
+## retrieve latest version of ss-config-sample ##
+wget -qO /tmp/ss-config http://mirrors.slickstack.io/ss-config-sample.txt
+
+## warn if placeholders exist ##
+SS_CONFIG_OPTION_PLACEHOLDER="$(grep -c '"@' /var/www/ss-config)"
+if [[ "$SS_CONFIG_OPTION_PLACEHOLDER" -gt 0 ]]; then
+    echo -e ""
+    echo -e "${LIGHTRED}Your ss-config file contains \"@...\" placeholders. Please input values for ${NOCOLOR}"
+    echo -e "${LIGHTRED}all incomplete option fields, and then run ss-overview again.${NOCOLOR}"
+    echo -e ""
+fi
+
+## ensure latest (retrieved) ss-config build matches current ss-update build ##
+SS_BUILD_LATEST=$(source /tmp/ss-config; echo $SS_BUILD)
+if [[ "$SS_BUILD_LATEST" != "$SS_BUILD" ]]; then
+    echo -e ""
+    echo -e "${YELLOW}It appears that a newer SlickStack build is available! We recommend you ${NOCOLOR}"
+    echo -e "${YELLOW}run ss-update to benefit from the latest features and patches.${NOCOLOR}"
+    echo -e ""
+fi
+
+## warning in case of sub-subdomains in use ##
+if [[ $SITE_DOMAIN = *.*.*.* ]]; then
+    echo -e ""
+    echo -e "${YELLOW}It appears your site is a sub-subdomain so CloudFlare's free SSL will not ${NOCOLOR}"
+    echo -e "${YELLOW}resolve (please either upgrade to Cloudflare's premium SSL options, or ${NOCOLOR}"
+    echo -e "${YELLOW}otherwise use Let's Encrypt SSL on this server).${NOCOLOR}"
+    echo -e ""
+fi
+
+## delete leftover files ##
+rm /tmp/ss-config*
+
+####################################################################################################
+#### SS-Stack-Overview: Touch Timestamp File (End Script) ##########################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+## script timestamp ##
+touch "$TIMESTAMP_SS_STACK_OVERVIEW"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: https://askubuntu.com/questions/560412/displaying-ip-address-on-eth0-interface
+## Ref: https://serverfault.com/questions/46645/shell-command-for-getting-ip-address
+## Ref: https://stackoverflow.com/questions/15331259/use-awk-to-find-first-occurrence-only-of-string-after-a-delimiter
+## Ref: https://stackoverflow.com/questions/6946677/grep-with-quotation-mark
+## Ref: https://unix.stackexchange.com/questions/48535/can-grep-return-true-false-or-are-there-alternative-methods
+
+## SS_EOF
