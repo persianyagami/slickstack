@@ -3,14 +3,33 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-empty-logs.txt ##################################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-empty-logs.txt #############################
 #### path: /var/www/ss-empty-logs ##################################################################
-#### destination: n/a (not a boilerplate) ##########################################################
+#### destination: n/a (static file) ################################################################
 #### purpose: Resets all SlickStack module log files to be NULL (empty) to clear history ###########
-#### module version: Ubuntu 22.04 LTS ##############################################################
+#### module version: Ubuntu 18.04-24.04 LTS ########################################################
 #### sourced by: ss-install ########################################################################
-#### bash aliases: ss clear logs, ss empty logs, ss null logs, ss reset logs #######################
+#### bash aliases: ss empty|null logs ##############################################################
 ####################################################################################################
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Empty-Logs) #############################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Null All Module Log Files
+
+####################################################################################################
+#### A. SS-Empty-Logs: Source SS-Config + SS-Functions #############################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
 
 ## source ss-config ##
 source /var/www/ss-config
@@ -21,45 +40,34 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Empty-Logs) #############################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-## C. Null All Log Files
-
-####################################################################################################
-#### A. SS-Empty-Logs: Touch Timestamp File ########################################################
+#### B. SS-Empty-Logs: Touch Timestamp File ########################################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_EMPTY_LOGS}"
 
 ####################################################################################################
-#### B. SS-Empty-Logs: Message (Begin Script) ######################################################
+#### C. SS-Empty-Logs: Message (Begin Script) ######################################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-empty-logs... ${COLOR_RESET}"
 
 ####################################################################################################
-#### C. SS-Empty-Logs: Null All Log Files ##########################################################
+#### D. SS-Empty-Logs: Null All Module Log Files ###################################################
 ####################################################################################################
 
 ## null log files ##
 ss_truncate /var/www/logs/*.log
 
+## FUTURE: what about bash history?
+
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -77,7 +85,7 @@ chmod 0700 /var/www/crons/*cron* ## 0700 means only root/sudo can execute
 chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 
 ####################################################################################################
-#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+#### SlickStack: External References Used To Improve This Script (Thanks Interwebz) ################
 ####################################################################################################
 
 ## Ref: https://stackoverflow.com/questions/30895546/cat-dev-null-to-multiple-files-to-clear-existing-files-like-logs

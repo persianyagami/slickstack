@@ -3,11 +3,11 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-sync-staging.txt ################################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-sync-staging.txt ###########################
 #### path: /var/www/ss-sync-staging ################################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Syncs relevant files and database from production site to the staging site ###########
-#### module version: MySQL 8.0.x + WordPress 6.0.x #################################################
+#### module version: MySQL 8.0.x + WordPress 7.0.x #################################################
 #### sourced by: n/a ###############################################################################
 #### bash aliases: ss sync staging #################################################################
 ####################################################################################################
@@ -25,17 +25,18 @@
 ## A. Source SS-Config + SS-Functions
 ## B. Touch Timestamp File
 ## C. Message (Begin Script)
-## D. Dump Production Database
-
-## X Install Database (Conditional)
-
-## E. Import Production Database To Staging Database
-## F. Copy Relevant Files From Production To Staging
-## G. Run SS-Install-WordPress-Config (Conditional)
-## H. Run SS-Install-WordPress-MU-Plugins (Conditional)
-## I. Fix Any Hardcoded Links In Staging Theme Files
-## J. Reset Permissions (WordPress Core)
-## K. Reset Permissions (SlickStack Scripts)
+## D. Begin If
+## E. Run SS-Dump-Database
+## F. Install Staging Database (Conditional)
+## G. Import Production Database To Staging Database
+## H. Copy Relevant Files From Production To Staging
+## I. Run SS-Install-WordPress-Config (Conditional)
+## J. Run SS-Install-WordPress-MU-Plugins (Conditional)
+## K. Fix Any Hardcoded Links In Staging Theme Files
+## L. Fix Incorrect URLs In Staging Database
+## M. Reset Permissions (WordPress)
+## N. End If
+## O. Cleanup Temporary Files
 
 ####################################################################################################
 #### A. SS-Sync-Staging: Source SS-Config + SS-Functions ###########################################
@@ -59,7 +60,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_SYNC_STAGING}"
 
 ####################################################################################################
@@ -67,9 +67,8 @@ ss_touch "${TIMESTAMP_SS_SYNC_STAGING}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-sync-staging... ${COLOR_RESET}"
 
 ####################################################################################################
@@ -77,70 +76,71 @@ ss_echo "${COLOR_INFO}Running ss-sync-staging... ${COLOR_RESET}"
 ####################################################################################################
 
 ## EXPAND SS DASHBOARD USING MYSQL???
-## check if SlickStack dashboard staging.wp_options has paused this script before proceeding
+## check if SlickStack dashboard staging.wp_options has paused sync-staging before proceeding
 
 # select EmployeeName from DemoTable where isMarried=true;
-# ss_options_staging_sync_status=$(mysql -BNe "USE staging; SELECT EmployeeName FROM DemoTable WHERE id=1")
+# ss_options_staging_sync_status=$(ss_mysql_user -BNe "USE staging; SELECT EmployeeName FROM DemoTable WHERE id=1")
 # $sql = "SELECT 'id' FROM Users WHERE username='$name'";
 
-
-
-if [[ "${STAGING_SITE}" != "false" ]] && [[ "${SS_SYNC_STAGING}" != "false" ]] && [[ "${WP_MULTISITE}" != "true" ]]; then
-
 ####################################################################################################
-#### D. SS-Sync-Staging: Dump Production Database ##################################################
+#### D. SS-Sync-Staging: Begin If ##################################################################
 ####################################################################################################
 
-## we must run ss-dump-database now if no database dump file is found under backups ##
-## this ensures that a dump file exists before atempting to sync it to staging ##
+if [[ "${STAGING_SITE}" == "true" && "${SS_SYNC_STAGING}" != "false" && "${WP_MULTISITE}" != "true" ]]; then
+
+####################################################################################################
+#### E. SS-Sync-Staging: Run SS-Dump-Database ######################################################
+####################################################################################################
+
+## we run ss-dump-database now to export the latest version of production database ##
+## this ensures the dump is recent before attempting to sync it to staging ##
 
 source "${PATH_SS_DUMP_DATABASE}"
 
 ####################################################################################################
-#### X. SS-Sync-Staging: Install Database (Conditional) #############################
+#### F. SS-Sync-Staging: Install Staging Database (Conditional) ####################################
 ####################################################################################################
 
-## FIX THIS
-## IF staging database not found
-## run ss-install-mysql-database ##
-# if [[  ]]; then
-#    source "${PATH_SS_INSTALL_MYSQL_DATABASE}"
-# fi
+## here we perform a simple check to see if the staging database exists yet or not ##
+## if the database is not detected the script will attempt to install it now ##
+
+if ! [[ $(ss_mysql_user -e 'use staging') ]]; then
+    source "${PATH_SS_INSTALL_MYSQL_DATABASE}"
+fi
 
 ####################################################################################################
-#### E. SS-Sync-Staging: Import Production Database To Staging Database ############################
+#### G. SS-Sync-Staging: Import Production Database To Staging Database ############################
 ####################################################################################################
 
 ## this snippet duplicates the dumped production database and imports it into MySQL ##
-## then it forecfully replaces the home/siteurl options to staging subdomain ##
+## then it forcefully replaces the home/siteurl options to staging subdomain ##
 
 ## import database ##
-ss_cp /var/www/backups/mysql/production.sql /tmp/staging.sql
-chown mysql:mysql /tmp/staging.sql ## does not matter if -L flag used below
-chmod 0644 /tmp/staging.sql ## does not matter if -L flag used below
-ss_mysql_8.0 staging < /tmp/staging.sql
-    
+ss_cp /var/www/backups/mysql/production.sql "${TMP_STAGING_SYNC_SQL}"
+chown mysql:mysql "${TMP_STAGING_SYNC_SQL}" ## does not matter if -L flag used below
+chmod 0640 "${TMP_STAGING_SYNC_SQL}" ## must be 0640
+ss_mysql_user staging < "${TMP_STAGING_SYNC_SQL}"
+
 ## fix staging home and siteurl fields (no mass search/replace to avoid potential conflicts) ##
 if [[ "${SS_APP}" == "wordpress" ]]; then
-    if [[ -n $(mysql --execute "SHOW TABLES FROM staging WHERE Tables_in_staging LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
-        mysql --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'";
-        mysql --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'";
-    fi
-fi
 
-## cleanup files ##
-ss_rm /tmp/staging.sql
+    if [[ -n $(ss_mysql_user --execute "SHOW TABLES FROM staging WHERE Tables_in_staging LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
+        ss_mysql_user --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'";
+        ss_mysql_user --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'";
+    fi
+    
+fi
     
 ####################################################################################################
-#### F. SS-Sync-Staging: Copy Relevant Files From Production To Staging ############################
+#### H. SS-Sync-Staging: Copy Relevant Files From Production To Staging ############################
 ####################################################################################################
 
-## here we copy over everything from production to staging besides uploads (media files) ##
-## schedule ss-clean beforehand in order to remove various (large) junk files ##
+## here we copy over all the files from production to staging besides media uploads ##
+## very large files e.g. backup archives are always skipped in this snippet ##
 
 ## copy wp-content files over (skips media uploads) ##
-ss_rsync --max-size=5mb --exclude 'blacklist.txt' --exclude 'object-cache.php' --exclude mu-plugins --exclude temp --exclude upgrade --exclude uploads /var/www/html/wp-content/ /var/www/html/staging/wp-content
-    
+ss_rsync --max-size=25mb --exclude 'blacklist.txt' --exclude 'object-cache.php' --exclude '*/mu-plugins/' --exclude '*/uploads/' /var/www/html/wp-content/ /var/www/html/staging/wp-content
+
 ## remove potential run-on subdirectories ##
 ss_rm /var/www/html/staging/staging*
 ss_rm /var/www/html/staging/wp-content/wp-content*
@@ -149,63 +149,75 @@ ss_rm /var/www/html/staging/wp-content/wp-content*
 ss_rm /var/www/html/staging/wp-content/object-cache.php*
 
 ####################################################################################################
-#### G. SS-Sync-Staging: Run SS-Install-WordPress-Config (Conditional) #############################
+#### I. SS-Sync-Staging: Run SS-Install-WordPress-Config (Conditional) #############################
 ####################################################################################################
 
 ## below snippet will install wp-config.php in case does not exist already in staging ##
 ## this is a failsafe in case staging enabled in ss-config post-installation ##
 
-## run ss-install-wordpress-config ##
-if [[ ! -f "/var/www/html/staging/wp-config.php" ]]; then
+if [[ ! -s "/var/www/html/staging/wp-config.php" ]]; then
     source "${PATH_SS_INSTALL_WORDPRESS_CONFIG}"
 fi
 
 ####################################################################################################
-#### H. SS-Sync-Staging: Run SS-Install-WordPress-MU-Plugins (Conditional) #########################
+#### J. SS-Sync-Staging: Run SS-Install-WordPress-MU-Plugins (Conditional) #########################
 ####################################################################################################
 
 ## below snippet will install MU plugins in case they do not exist already in staging ##
 ## this is a failsafe in case staging enabled in ss-config post-installation ##
 
-## run ss-install-wordpress-mu-plugins ##
-if [[ ! -f "/var/www/html/staging/wp-content/mu-plugins/xxx-common.php" ]]; then
+if [[ ! -s "/var/www/html/staging/wp-content/mu-plugins/000-common.php" ]]; then
     source "${PATH_SS_INSTALL_WORDPRESS_MU_PLUGINS}"
 fi
 
 ####################################################################################################
-#### I. SS-Sync-Staging: Fix Any Hardcoded Links In Staging Theme Files ############################
+#### K. SS-Sync-Staging: Fix Any Hardcoded Links In Staging Theme Files ############################
 ####################################################################################################
 
 ## many themes (or custom-coded themes) often contain hardcoded HTML assets and links ##
 ## here we forcefully fix these links to ensure staging sites render properly ##
 
-## fix hardcoded theme links ##
-find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i "s#https://${SITE_DOMAIN_INCLUDING_WWW}#https://staging.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
-find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i "s#http://${SITE_DOMAIN_INCLUDING_WWW}#https://staging.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
-find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i "s#https://${SITE_DOMAIN_EXCLUDING_WWW}#https://staging.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
-find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i "s#http://${SITE_DOMAIN_EXCLUDING_WWW}#https://staging.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
+find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i'' "s|https://${SITE_DOMAIN_INCLUDING_WWW}|https://staging.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
+find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i'' "s|http://${SITE_DOMAIN_INCLUDING_WWW}|https://staging.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
+find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i'' "s|https://${SITE_DOMAIN_EXCLUDING_WWW}|https://staging.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
+find /var/www/html/staging/wp-content/themes/ -type f -exec sed -i'' "s|http://${SITE_DOMAIN_EXCLUDING_WWW}|https://staging.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
 
+####################################################################################################
+#### L. SS-Sync-Staging: Fix Incorrect URLs In Staging Database ####################################
+####################################################################################################
 
-## end if staging site true ##
+## here we use WP-CLI to search and replace prod domain with staging domain in MySQL ##
+## this is not super necessary due to wp-config.php but can help avoid issues ##
+
+sudo -u www-data "${PATH_WP_CLI}" --path="/var/www/html/staging" search-replace "https://${SITE_FULL_DOMAIN}" "https://staging.${SITE_DOMAIN_EXCLUDING_WWW}" --all-tables > /dev/null 2>&1
+
+####################################################################################################
+#### M. SS-Sync-Staging: Reset Permissions (WordPress) ############################################
+####################################################################################################
+
+## run ss-perms-wordpress-packages ##
+source "${PATH_SS_PERMS_WORDPRESS_PACKAGES}"
+
+## run ss-perms-wordpress-mu-plugins ##
+source "${PATH_SS_PERMS_WORDPRESS_MU_PLUGINS}"
+
+## run ss-perms-wordpress-config ##
+source "${PATH_SS_PERMS_WORDPRESS_CONFIG}"
+
+####################################################################################################
+#### N. SS-Sync-Staging: End If ####################################################################
+####################################################################################################
+
 fi
 
 ####################################################################################################
-#### G. SS-Sync-Staging: Fix Wrong URLs in Staging Database #########################
+#### O. SS-Sync-Staging: Cleanup Temporary Files ###################################################
 ####################################################################################################
 
-## needs more testing
-## use WP-CLI to search/replace staging links in production database
-
-# wp search-replace https://"${SITE_DOMAIN}" https://staging."${SITE_DOMAIN_EXCLUDING_WWW}" --all-tables
+ss_rm "${TMP_STAGING_SYNC_SQL}"
 
 ####################################################################################################
-#### J. SS-Sync-Staging: Reset Permissions (WordPress Core) ########################################
-####################################################################################################
-
-source "${PATH_SS_PERMS_WORDPRESS_CORE}"
-
-####################################################################################################
-#### K. SS-Sync-Staging: Reset Permissions (SlickStack Scripts) ####################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -226,13 +238,14 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
+## Ref: ChatGPT
 ## Ref: https://community.centminmod.com/threads/wp-engine-type-production-staging-file-and-db-sync.19720/
 ## Ref: https://softwareengineering.stackexchange.com/questions/117945/staging-environment-vs-production-environment
 ## Ref: https://www.thegeekstuff.com/2011/01/rsync-exclude-files-and-folders/
 ## Ref: https://stackoverflow.com/questions/2466101/how-i-can-change-prefixes-in-all-tables-in-my-mysql-db
 ## Ref: https://stackoverflow.com/questions/55055130/mysql-copy-tables-with-specific-prefix-between-databases
 ## Ref: https://stackoverflow.com/questions/3280006/duplicating-a-mysql-table-indices-and-data
-## Ref: https://tableplus.com/blog/2018/11/how-to-duplicate-a-table-in-mysql.html
+## Ref: https://tableplus.com/blog/2018/11/how-to-duplicate-a-table-indices-and-data
 ## Ref: https://electrictoolbox.com/copy-table-mysql-create-table-like/
 ## Ref: https://guides.wp-bullet.com/advanced-wordpress-search-replace-database-with-linux-using-sed/
 ## Ref: https://stackoverflow.com/questions/1917021/mysqldump-table-names-prefix
@@ -291,5 +304,9 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 ## Ref: https://www.madboa.com/blog/2018/07/17/rsync-bash-vars/
 ## Ref: https://stackoverflow.com/questions/5767062/how-to-check-if-a-symlink-exists
 ## Ref: https://wordpress.stackexchange.com/questions/408756/best-way-to-search-and-replace-within-serialized-database-strings
+## Ref: https://serverfault.com/questions/801875/in-an-rsync-how-do-i-exclude-all-directories-that-match-a-pattern
+## Ref: https://unix.stackexchange.com/questions/83394/rsync-exclude-directory-not-working
+## Ref: https://github.com/littlebizzy/slickstack/issues/150
+## Ref: https://serverfault.com/questions/173978/from-a-shell-script-how-can-i-check-whether-a-mysql-database-exists
 
 ## SS_EOF

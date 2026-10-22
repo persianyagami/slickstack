@@ -3,17 +3,40 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-install-mysql-packages.txt ######################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-install-mysql-packages.txt #################
 #### path: /var/www/ss-install-mysql-packages ######################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Reinstalls the MySQL module Ubuntu packages and extensions (idempotent) ##############
 #### module version: MySQL 8.0.x ###################################################################
 #### sourced by: ss-install ########################################################################
-#### bash aliases: ss install mysql core, ss install mysql packages ################################
+#### bash aliases: ss install mysql packages #######################################################
 ####################################################################################################
 
 ## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
 ## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Install-MySQL-Packages) #################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions 
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Update Existing Packages
+## E. Install MySQL Server (Conditional)
+## F. Install MySQL Client (Conditional)
+## G. Install Localhost Databases (Conditional)
+## H. Reset Permissions (MySQL Packages)
+
+####################################################################################################
+#### A. SS-Install-MySQL-Packages: Source SS-Config + SS-Functions #################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
 
 ## source ss-config ##
 source /var/www/ss-config
@@ -24,47 +47,25 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Install-MySQL-Packages) #################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-## C.Update Existing Packages
-
-## C. Install MySQL (Localhost Only)
-## D. Configure Root + Admin User
-
-####################################################################################################
-#### A. SS-Install-MySQL-Packages: Touch Timestamp File ############################################
+#### B. SS-Install-MySQL-Packages: Touch Timestamp File ############################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_INSTALL_MYSQL_PACKAGES}"
 
 ####################################################################################################
-#### B. SS-Install-MySQL-Packages: Message (Begin Script) ##########################################
+#### C. SS-Install-MySQL-Packages: Message (Begin Script) ##########################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-install-mysql-packages... ${COLOR_RESET}"
 
-
-
-if [[ "$SS_DATABASE_REMOTE" != "true" ]]; then
-
-## ADD NEW SECTION for else install mysql client only (if using remote database)
-
 ####################################################################################################
-#### C. SS-Install-MySQL-Packages: Update Existing Packages ########################################
+#### D. SS-Install-MySQL-Packages: Update Existing Packages ########################################
 ####################################################################################################
 
 ## we must include the standard apt update/upgrade in case script is called directly ##
@@ -96,53 +97,88 @@ ss_apt_upgrade
 # sudo echo PURGE | sudo debconf-communicate mysql-server
 # sudo echo "mysql-community-server mysql-community-server/remove-data-dir boolean true" | sudo debconf-set-selections
 
-## prepare root password for apt (PSA: sudo the shit out of these or it will fail) ##
-# if [[ "${UBUNTU_VERSION}" = "20.04" || -z "${UBUNTU_VERSION}" ]]; then 
+## prepare root password for ss_apt (PSA: sudo the shit out of these or it will fail) ##
+# if [[ "${SYSTEM_UBUNTU_VERSION}" = "20.04" || -z "${SYSTEM_UBUNTU_VERSION}" ]]; then 
 # sudo echo "mysql-community-server mysql-community-server/root-pass password ${DB_PASSWORD_ROOT}" | sudo debconf-set-selections
 # sudo echo "mysql-community-server mysql-community-server/re-root-pass password ${DB_PASSWORD_ROOT}" | sudo debconf-set-selections
 # sudo echo "mysql-community-server mysql-server/default-auth-override select Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" | sudo debconf-set-selections
 # fi
 
 ####################################################################################################
-#### C. SS-Install-MySQL-Packages: Install MySQL (Localhost Only) ##################################
+#### E. SS-Install-MySQL-Packages: Install MySQL Server (Conditional) ##############################
 ####################################################################################################
 
 ## this script will install the MySQL packages unless it is set to false in ss-config ##
 ## remote database environments should not require localhost MySQL installed ##
 
+if [[ "${DB_REMOTE}" != "true" ]]; then
+
+    ## ubuntu 24.04 ##
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "24.04" ]]; then 
+        ss_apt_install mysql-server-8.0
+    fi
+
     ## ubuntu 22.04 ##
-    if [[ "${UBUNTU_VERSION}" == "22.04" ]]; then 
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "22.04" ]]; then 
         ss_apt_install mysql-server-8.0
     fi
     
     ## ubuntu 20.04 ##
-    if [[ "${UBUNTU_VERSION}" == "20.04" ]]; then 
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "20.04" ]]; then 
         ss_apt_install mysql-server-8.0
     fi
     
     ## ubuntu 18.04 ##
-    if [[ "${UBUNTU_VERSION}" == "18.04" ]]; then
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "18.04" ]]; then
         ss_apt_install mysql-server-5.7
     fi
-
-####################################################################################################
-#### D. SS-Install-MySQL-Packages: Install Database(s) #############################################
-####################################################################################################
-
-source "${PATH_SS_INSTALL_MYSQL_DATABASE}"
-
-####################################################################################################
-#### SS-Install-MySQL-Packages: Reset Permissions (MySQL Core) #####################################
-####################################################################################################
-
-## run ss-perms-mysql-packages ##
-source "${PATH_SS_PERMS_MYSQL_PACKAGES}"
-
 
 fi
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### F. SS-Install-MySQL-Packages: Install MySQL Client (Conditional) ##############################
+####################################################################################################
+
+if [[ "${DB_REMOTE}" == "true" ]]; then
+
+    ## ubuntu 24.04 ##
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "24.04" ]]; then 
+        ss_apt_install mysql-client-8.0
+    fi
+
+    ## ubuntu 22.04 ##
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "22.04" ]]; then 
+        ss_apt_install mysql-client-8.0
+    fi
+
+    ## ubuntu 20.04 ##
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "20.04" ]]; then 
+        ss_apt_install mysql-client-8.0
+    fi
+
+    ## ubuntu 18.04 ##
+    if [[ "${SYSTEM_UBUNTU_VERSION}" == "18.04" ]]; then 
+        ss_apt_install mysql-client-5.7
+    fi
+
+fi
+    
+####################################################################################################
+#### G. SS-Install-MySQL-Packages: Install Localhost Databases (Conditional) #######################
+####################################################################################################
+
+if [[ "${DB_REMOTE}" != "true" ]]; then
+    source "${PATH_SS_INSTALL_MYSQL_DATABASE}"
+fi
+
+####################################################################################################
+#### H. SS-Install-MySQL-Packages: Reset Permissions (MySQL Packages) ##############################
+####################################################################################################
+
+source "${PATH_SS_PERMS_MYSQL_PACKAGES}"
+
+####################################################################################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -167,7 +203,7 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 ## WE USE SOCKETS FOR CORE SCRIPTS AND AIM TO USE TCP/SSL/SHA2 FOR WORDPRESS ##
 
 ## copy the default socket for keeps (might disappear during stop MySQL) ##
-# cp /var/run/mysqld /var/run/mysqld.bak
+# ss_cp /var/run/mysqld /var/run/mysqld.bak
 
 ## put back socket
 # if [ ! -f "/var/run/mysqld/*sock" ]; then 
@@ -183,9 +219,9 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 
 # mysqld --init-file=/tmp/init-mysql.txt &
 
-# rm /tmp/init-mysql.txt*
+# ss_rm /tmp/init-mysql.txt*
 # ss_wget /tmp/init-mysql.txt http://mirrors.slickstack.io/mysql/init-mysql.txt
-# sed -i "s/@DB_PASSWORD_ROOT/${DB_PASSWORD_ROOT}/g" /tmp/init-mysql.txt
+# ss_sed "s/@DB_PASSWORD_ROOT/${DB_PASSWORD_ROOT}/g" /tmp/init-mysql.txt
 # chown mysql:mysql /tmp/init-mysql.txt
 # chmod 0775 /tmp/init-mysql.txt
 
@@ -194,12 +230,12 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 # bin/mysqld --initialize-insecure --user=mysql
 
 ## start MySQL ##
-# mysql --skip-password
+# ss_mysql_root --skip-password
 ## grep "A temporary password" /var/log/mysqld.log
 
 ## caching_sha2_password requires TLS, sockets, or shared memory ##
 
-# mysql --flush-privileges -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${DB_PASSWORD_ROOT}';"
+# ss_mysql_root --flush-privileges -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${DB_PASSWORD_ROOT}';"
 # SELECT plugin from mysql.user where User='root';
 # SELECT User,plugin from mysql.user where User='root';
 # SELECT user,authentication_string,plugin,host FROM mysql.user;
@@ -302,5 +338,6 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 ## Ref: https://vettabase.com/blog/the-risks-of-mysql-release-policy/
 ## Ref: https://tldp.org/LDP/abs/html/comparison-ops.html
 ## Ref: https://forum.virtualmin.com/t/why-mysql-and-not-mariadb-on-ubuntu-20-04-virtualmin/107232/1
+## Ref: https://devlogbook.com/using-mysqldump-without-mysql-server-installed
 
 ## SS_EOF

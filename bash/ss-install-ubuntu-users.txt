@@ -3,17 +3,43 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-install-ubuntu-users.txt ########################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-install-ubuntu-users.txt ###################
 #### path: /var/www/ss-install-ubuntu-users ########################################################
 #### destination: n/a (not a boilerplate) ##########################################################
-#### purpose: Reinstalls Linux OS users based on ss-config #########################################
-#### module version: Ubuntu 22.04 LTS ##############################################################
+#### purpose: Reinstalls Ubuntu users and groups and sudoers file based on ss-config ###############
+#### module version: Ubuntu 18.04 to 24.04 LTS #####################################################
 #### sourced by: ss-install ########################################################################
 #### bash aliases: ss install ubuntu users, ss install users #######################################
 ####################################################################################################
 
 ## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
 ## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Install-Ubuntu-Users) ###################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Create User Groups
+## E. Configure Root User
+## F. Configure Sudo User
+## G. Configure SFTP User
+## H. Assign Additional Groups
+## I. Configure Sudoers File 
+## J. Reset Permissions (Ubuntu Users)
+## K. Run SS-Install-Ubuntu-Bash
+
+####################################################################################################
+#### A. SS-Install-Ubuntu-Users: Source SS-Config + SS-Functions ###################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
 
 ## source ss-config ##
 source /var/www/ss-config
@@ -24,134 +50,154 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Install-Ubuntu-Users) ###################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-
-## D. Configure Users + Passwords + Groups
-## E. Configure Sudo Permissions
-## F. Reset Permissions (Ubuntu Users)
-
-## H. Configure Ubuntu Bash Shortcuts
-
-####################################################################################################
-#### A. SS-Install-Ubuntu-Users: Touch Timestamp File ##############################################
+#### B. SS-Install-Ubuntu-Users: Touch Timestamp File ##############################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_INSTALL_UBUNTU_USERS}"
 
 ####################################################################################################
-#### B. SS-Install-Ubuntu-Users: Message (Begin Script) ############################################
+#### C. SS-Install-Ubuntu-Users: Message (Begin Script) ############################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-install-ubuntu-users... ${COLOR_RESET}"
 
 ####################################################################################################
-#### D. SS-Install-Ubuntu-Users: Configure Root User ###################################################
+#### D. SS-Install-Ubuntu-Users: Create User Groups ################################################
 ####################################################################################################
 
-## set root password ##
-echo "root:${ROOT_PASSWORD}" | /usr/sbin/chpasswd
+groupadd -f sudo-ssh
+groupadd -f sftp-only
+groupadd -f slickstack
 
-## ensure root password never expires ##
+####################################################################################################
+#### E. SS-Install-Ubuntu-Users: Configure Root User ###############################################
+####################################################################################################
+
+## set root password to match sudo password ##
+printf '%s\n' "root:${SUDO_PASSWORD}" | /usr/sbin/chpasswd
+
+## prevent root password expiration ##
 chage -E -1 -m 0 -M -1 -I -1 -W 99999 root
 
+## ensure root is not in sudo-ssh or sftp-only groups ##
+gpasswd -d root sudo-ssh > /dev/null 2>&1 || true
+gpasswd -d root sftp-only > /dev/null 2>&1 || true
+
 ####################################################################################################
-#### D. SS-Install-Ubuntu-Users: Configure Sudo User ###################################################
+#### F. SS-Install-Ubuntu-Users: Configure Sudo User ###############################################
 ####################################################################################################
 
 ## create sudo user ##
 ss_adduser "${SUDO_USER}"
 
-## assign password to sudo user ##
-echo "${SUDO_USER}:${SUDO_PASSWORD}" | /usr/sbin/chpasswd
+## set sudo user password ##
+printf '%s\n' "${SUDO_USER}:${SUDO_PASSWORD}" | /usr/sbin/chpasswd
 
-# chage -E -1 -m 0 -M -1 -I -1 -W 99999 $SUDO_USER
+## prevent password expiration ##
+chage -m 0 -M 99999 -I -1 -E -1 "${SUDO_USER}"
 
 ## ensure home directory exists ##
 mkhomedir_helper "${SUDO_USER}"
 
+## set default shell to bash (hide "no changes" message) ##
+usermod -s /bin/bash "${SUDO_USER}" 2>&1 | grep -v "no changes"
+
+## add sudo user to sudo-ssh group for SSH access ##
+usermod -aG sudo-ssh "${SUDO_USER}"
+
 ####################################################################################################
-#### D. SS-Install-Ubuntu-Users: Configure SFTP User ###################################################
+#### G. SS-Install-Ubuntu-Users: Configure SFTP User ###############################################
 ####################################################################################################
 
 ## create sftp user ##
 ss_adduser "${SFTP_USER}"
 
-## assign password to sftp user ##
-echo "${SFTP_USER}:${SFTP_PASSWORD}" | /usr/sbin/chpasswd
+## set sftp user password ##
+printf '%s\n' "${SFTP_USER}:${SFTP_PASSWORD}" | /usr/sbin/chpasswd
 
-# chage -E -1 -m 0 -M -1 -I -1 -W 99999 $SFTP_USER
+## prevent password expiration ##
+chage -m 0 -M 99999 -I -1 -E -1 "${SFTP_USER}"
 
 ## ensure home directory exists ##
 mkhomedir_helper "${SFTP_USER}"
 
-####################################################################################################
-#### D. SS-Install-Ubuntu-Users: Configure Groups ##################################################
-####################################################################################################
+## disable shell access (hide "no changes" message) ##
+usermod -s /usr/sbin/nologin "${SFTP_USER}" 2>&1 | grep -v "no changes"
 
-## add slickstack group ##
-groupadd -f slickstack
-
-## add sftp user to groups ##
-usermod -a -G slickstack "${SFTP_USER}"
-usermod -a -G www-data "${SFTP_USER}"
-
-## add sudo user to groups ##
-usermod -a -G slickstack "${SUDO_USER}"
-usermod -a -G www-data "${SUDO_USER}"
-
-## add www-data user to groups ##
-usermod -a -G slickstack www-data
+## add sftp user to sftp-only group ##
+usermod -aG sftp-only "${SFTP_USER}"
 
 ####################################################################################################
-#### E. SS-Install-Ubuntu-Users: Configure Sudoers File ########################################
+#### H. SS-Install-Ubuntu-Users: Assign Additional Groups ##########################################
 ####################################################################################################
 
-## download latest versions ##
-ss_wget "${TMP_SUDOERS}" "${MIRROR_SUDOERS}"
+## add sftp user to required groups ##
+usermod -aG slickstack "${SFTP_USER}"
+usermod -aG www-data "${SFTP_USER}"
 
-## replace variables ##
-sed -i "s/@SUDO_USER/${SUDO_USER}/g" "${TMP_SUDOERS}"
+## add sudo user to required groups ##
+usermod -aG slickstack "${SUDO_USER}"
+usermod -aG www-data "${SUDO_USER}"
 
-## copy files to their destinations ##
-ss_mv "${TMP_SUDOERS}" "${PATH_SUDOERS}"
+## add www-data user to slickstack group ##
+usermod -aG slickstack www-data
 
-## delete tmp files ##
-ss_rm "${TMP_SUDOERS}"
+## perhaps add sudo user to root group and then source ss-config inside bashrc with group exec perms?
 
 ####################################################################################################
-#### F. SS-Install-Ubuntu-Users: Reset Permissions (Ubuntu Users) ##################################
+#### I. SS-Install-Ubuntu-Users: Configure Sudoers File ############################################
 ####################################################################################################
 
-## run ss-perms-ubuntu-users ##
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "24.04" ]]; then
+    ss_wget "${TMP_SUDOERS}" "${GITHUB_SUDOERS_2404}"
+    ss_sed "s/@SUDO_USER/${SUDO_USER}/g" "${TMP_SUDOERS}"
+    ss_mv "${TMP_SUDOERS}" "${PATH_SUDOERS}"
+
+elif [[ "${SYSTEM_UBUNTU_VERSION}" == "22.04" ]]; then
+    ss_wget "${TMP_SUDOERS}" "${GITHUB_SUDOERS_2204}"
+    ss_sed "s/@SUDO_USER/${SUDO_USER}/g" "${TMP_SUDOERS}"
+    ss_mv "${TMP_SUDOERS}" "${PATH_SUDOERS}"
+
+elif [[ "${SYSTEM_UBUNTU_VERSION}" == "20.04" ]]; then
+    ss_wget "${TMP_SUDOERS}" "${GITHUB_SUDOERS}" ## change this later to version specific
+    ss_sed "s/@SUDO_USER/${SUDO_USER}/g" "${TMP_SUDOERS}"
+    ss_mv "${TMP_SUDOERS}" "${PATH_SUDOERS}"
+
+elif [[ "${SYSTEM_UBUNTU_VERSION}" == "18.04" ]]; then
+    ss_wget "${TMP_SUDOERS}" "${GITHUB_SUDOERS}" ## change this later to version specific
+    ss_sed "s/@SUDO_USER/${SUDO_USER}/g" "${TMP_SUDOERS}"
+    ss_mv "${TMP_SUDOERS}" "${PATH_SUDOERS}"
+fi
+
+####################################################################################################
+#### J. SS-Install-Ubuntu-Users: Reset Permissions (Ubuntu Users) ##################################
+####################################################################################################
+
 source "${PATH_SS_PERMS_UBUNTU_USERS}"
 
 ####################################################################################################
-#### H. SS-Install-Ubuntu-Users: Configure Ubuntu Bash Shortcuts ###################################
+#### K. SS-Install-Ubuntu-Users: Run SS-Install-Ubuntu-Bash ########################################
 ####################################################################################################
 
 ## here we reinstall bash run commands which requires the users to be installed already ##
 ## there is no drawback to running this repeatedly so we include it here casually ##
 
-## run ss-install-ubuntu-bash ##
 source "${PATH_SS_INSTALL_UBUNTU_BASH}"
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### K. SS-Install-Ubuntu-Users: Cleanup Temporary Files ###########################################
+####################################################################################################
+
+ss_rm "${TMP_SUDOERS}"
+
+####################################################################################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -172,6 +218,7 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
+## Ref: ChatGPT
 ## Ref: https://askubuntu.com/questions/94060/run-adduser-non-interactively
 ## Ref: http://manpages.ubuntu.com/manpages/trusty/man8/adduser.8.html
 ## Ref: https://www.computerhope.com/unix/adduser.htm

@@ -3,14 +3,34 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-import-database.txt #############################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-import-database.txt ########################
 #### path: /var/www/ss-import-database #############################################################
-#### destination: n/a (not a boilerplate) ##########################################################
-#### purpose: Force imports /var/www/meta/import.sql (or import.sql.zip|gz) to database ############
-#### module version: MySQL 8.0.x ###################################################################
+#### destination: n/a (static file) ################################################################
+#### purpose: Force imports /tmp/import.sql|.sql.zip|.sql.gz and overwrites database ###############
+#### module version: Ubuntu 18.04-24.04 LTS + MySQL 5.7-8.0 ########################################
 #### sourced by: n/a ###############################################################################
-#### bash aliases: ss import database, ss import db ################################################
+#### bash aliases: ss import database|db ###########################################################
 ####################################################################################################
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Import-Database) ########################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Run SS-Dump-Database
+## E. Import Database (Overwrites Data)
+
+####################################################################################################
+#### A. SS-Import-Database: Source SS-Config + SS-Functions ########################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
 
 ## source ss-config ##
 source /var/www/ss-config
@@ -21,79 +41,131 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Import-Database) ########################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-
-####################################################################################################
-#### A. SS-Import-Database: Touch Timestamp File ###################################################
+#### B. SS-Import-Database: Touch Timestamp File ###################################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_IMPORT_DATABASE}"
 
 ####################################################################################################
-#### B. SS-Import-Database: Message (Begin Script) #################################################
+#### C. SS-Import-Database: Message (Begin Script) #################################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-import-database... ${COLOR_RESET}"
 
 ####################################################################################################
-#### SS-Import: Delete Any Previous / Leftover (Conflicting) Temporary Files #######################
+#### D. SS-Import-Database: Run SS-Dump-Database ###################################################
 ####################################################################################################
 
+## before overwriting the live production database we first dump the existing database ##
+## this is an extra safety precaution to ensure a recent database dump exists ##
 
-
-####################################################################################################
-#### SS-Import-Database: Backup Database Before Proceeding (Via SS-Dump-Database) ##################
-####################################################################################################
-
-## run ss-dump-database ##
-source /var/www/ss-dump-database
+source "${PATH_SS_DUMP_DATABASE}"
 
 ####################################################################################################
-#### SS-Import: Import Database (Overwrites Data) ##################################################
+#### E. SS-Import-Database: Import Database (Overwrites Data) ######################################
 ####################################################################################################
 
-## import production database ##
-if [[ -f "/var/www/meta/import.sql" ]]; then
-    mysql "$DB_NAME" < /var/www/meta/import.sql
-elif [[ ! -f "/var/www/meta/import.sql" ]] && [[ -f "/var/www/meta/import.zip" ]]; then
-    mysql "$DB_NAME" < /var/www/meta/import.zip
-elif [[ ! -f "/var/www/meta/import.sql" ]] && [[ ! -f "/var/www/meta/import.zip" ]] && [[ -f "/var/www/meta/import.gz" ]]; then
-    mysql "$DB_NAME" < /var/www/meta/import.gz
-else 
-    echo -e "No import.sql|zip|gz file found, cannot import database."
+## here the sudo user must manually confirm importing database before it can proceed ##
+## import.sql is the preferred file format followed by .sql.zip and .sql.gz ##
+
+## confirm destructive database import ##
+read -r -p "The database will be completely overwritten. Are you sure? [y/N] " response
+if [[ "${response}" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+
+    ## import plain sql file if present and non-empty ##
+    if [[ -s "/tmp/import.sql" ]]; then
+
+        ss_echo "Found import.sql. Proceeding to overwrite the database."
+
+		## fix ownership and permissions ##
+		chown "${SFTP_USER}":www-data "/tmp/import.sql"
+		chmod 0660 "/tmp/import.sql"
+
+        ## import sql into database ##
+        ss_mysql_user "${DB_NAME}" < "/tmp/import.sql" || {
+            ss_echo "Database import failed."
+            exit 1
+        }
+        
+    ## import zipped sql file if present ##
+    elif [[ -f "/tmp/import.sql.zip" ]]; then
+
+        ## verify zip file integrity ##
+        unzip -tq "/tmp/import.sql.zip" || {
+            ss_echo "Zip file failed integrity check."
+            exit 1
+        }
+
+        ## ensure zip file contains data ##
+        unzip -p "/tmp/import.sql.zip" | head -c 1 >/dev/null || {
+            ss_echo "Zip file appears to be empty."
+            exit 1
+        }
+
+        ss_echo "Found import.sql.zip. Proceeding to overwrite the database."
+
+		## fix ownership and permissions ##
+		chown "${SFTP_USER}":www-data "/tmp/import.sql.zip"
+		chmod 0660 "/tmp/import.sql.zip"
+
+        ## stream unzip and import sql into database ##
+        unzip -p "/tmp/import.sql.zip" | ss_mysql_user "${DB_NAME}" || {
+            ss_echo "Database import failed."
+            exit 1
+        }
+        
+    ## import gzipped sql file if present ##
+    elif [[ -f "/tmp/import.sql.gz" ]]; then
+
+        ## verify gzip file integrity ##
+        gunzip -t "/tmp/import.sql.gz" || {
+            ss_echo "Gzip file failed integrity check."
+            exit 1
+        }
+
+        ## ensure gzip file contains data ##
+        gunzip -c "/tmp/import.sql.gz" | head -c 1 >/dev/null || {
+            ss_echo "Gzip file appears to be empty."
+            exit 1
+        }
+
+        ss_echo "Found import.sql.gz. Proceeding to overwrite the database."
+
+		## fix ownership and permissions ##
+		chown "${SFTP_USER}":www-data "/tmp/import.sql.gz"
+		chmod 0660 "/tmp/import.sql.gz"
+
+        ## stream gunzip and import sql into database ##
+        gunzip -c "/tmp/import.sql.gz" | ss_mysql_user "${DB_NAME}" || {
+            ss_echo "Database import failed."
+            exit 1
+        }
+                
+    ## no valid import file found ##
+    else
+
+        ss_echo "No import.sql, import.sql.zip, or import.sql.gz file was found. The database cannot be imported."
+        exit 1
+
+    fi
+
+    ## import completed successfully ##
+    ss_echo "Database import completed successfully."
+
+## user cancelled import ##
+else
+    ss_echo "Database import cancelled."
+    exit 1
 fi
 
 ####################################################################################################
-#### SS-Import: Import Database (Overwrites Data) ##################################################
-####################################################################################################
-
-## MESSAGE ##
-echo -e "${LIGHTPURPLE}Importing (and overwriting) production files and database (don't worry, we will backup first)...${NOCOLOR}" >&2
-
-chown -R $SFTP_USER:www-data /var/www/meta/import.sql
-chmod 6775 /var/www/meta/import.sql
-chown -R $SFTP_USER:www-data /var/www/meta/import.sql.zip
-chmod 6775 /var/www/meta/import.sql.zip
-chown -R $SFTP_USER:www-data /var/www/meta/import.sql.gz
-chmod 6775 /var/www/meta/import.sql.gz
-
-####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -111,10 +183,11 @@ chmod 0700 /var/www/crons/*cron* ## 0700 means only root/sudo can execute
 chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 
 ####################################################################################################
-#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+#### SlickStack: External References Used To Improve This Script (Thanks Interwebz) ################
 ####################################################################################################
 
-## Ref: https://github.com/littlebizzy/slickstack/blob/master/ss-dump.txt
-## Ref: https://collegetimes.co/lemp-server/
+## Ref: ChatGPT
+## Ref: https://unix.stackexchange.com/questions/630495/what-is-set-group-id-on-execution-ignored-and-why-am-i-unable-to-unzip-a-file
+## Ref: https://www.reddit.com/r/Ubuntu/comments/s39uyj/gzip_error_mydbsql_is_setgroupid_on_execution/
 
 ## SS_EOF

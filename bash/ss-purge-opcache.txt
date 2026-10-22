@@ -3,17 +3,38 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-purge-opcache.txt ###############################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-purge-opcache.txt ##########################
 #### path: /var/www/ss-purge-opcache ###############################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Clears the PHP-FPM OPcache by deleting files under /var/www/cache/opcache/ ###########
-#### module version: PHP-FPM 8.1.x #################################################################
-#### sourced by: ss-purge, ss core bash scripts ####################################################
-#### bash aliases: ss purge [clear] opcache, ss purge [clear] caches opcache #######################
+#### module version: PHP-FPM 8.3.x #################################################################
+#### sourced by: n/a ###############################################################################
+#### bash aliases: ss purge opcache ################################################################
 ####################################################################################################
 
-## RUNNING SS-PURGE DURING TRAFFIC SPIKES MIGHT CAUSE SUDDEN STRESS TO SERVER RESOURCES ##
-## KEEP IN MIND THAT PAGE CACHING IS DISABLED ALREADY ON DEV/STAGING WEBSITES ##
+## PURGING CACHES DURING TRAFFIC SPIKES MIGHT CAUSE SUDDEN STRAIN TO SERVER RESOURCES ##
+## KEEP IN MIND THAT MOST CACHING IS ALREADY DISABLED ON DEV/STAGING SUBDOMAINS ##
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Purge-OPcache) ##########################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Purge OPcache Via WP-CLI
+## E. Purge OPcache Via PHP Script (Fallback)
+## F. Purge Physical OPcache Files
+
+####################################################################################################
+#### A. SS-Purge-OPcache: Source SS-Config + SS-Functions ##########################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
 
 ## source ss-config ##
 source /var/www/ss-config
@@ -24,61 +45,74 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Purge-OPcache) ##########################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-
-####################################################################################################
-#### A. SS-Purge-OPcache: Touch Timestamp File #####################################################
+#### B. SS-Purge-OPcache: Touch Timestamp File #####################################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_PURGE_OPCACHE}"
 
 ####################################################################################################
-#### B. SS-Purge-OPcache: Message (Begin Script) ###################################################
+#### C. SS-Purge-OPcache: Message (Begin Script) ###################################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-purge-opcache... ${COLOR_RESET}"
 
 ####################################################################################################
-#### SS-Purge-OPcache: Clear Cache (PHP-FPM OPcache) ###############################################
+#### D. SS-Purge-OPcache: Purge OPcache Via WP-CLI #################################################
 ####################################################################################################
 
-## by default OPcache only caches PHP files for a few seconds but we clear it to be sure ##
-## this snippet will also clear physical OPcache files if the feature is enabled ##
+## clears in-memory OPcache using WP-CLI ensuring updated scripts load without any delay ##
+## does not remove physical OPcache files, only resets cached PHP files in memory ##
 
-if [[ "${SS_APP}" != "mysql" ]]; then
-
-## manually delete OPcache file cache (after opcache file cache works better) ##
-# rm /var/www/cache/opcache/*
-
-## creative way to reset OPcache using temporary PHP script ##
-RANDOM_RESET_OPCACHE=$(openssl rand -hex 12)
-echo "<?php opcache_reset(); ?>" > /var/www/html/purge-${RANDOM_RESET_OPCACHE}.php
-/usr/bin/php /var/www/html/purge-${RANDOM_RESET_OPCACHE}.php
-rm /var/www/html/purge-*.php
-
-## manually delete OPcache file cache (again) ##
-# rm /var/www/cache/opcache/*
-# rm "$PATH_CACHE_OPCACHE"*
-
+if [[ ! -e "/var/www/html/wp-content/object-cache.php" ]] || sudo -u www-data test -r "/var/www/html/wp-content/object-cache.php"; then
+    sudo -u www-data "${PATH_WP_CLI}" --path="${PATH_WEB_ROOT}" eval 'opcache_reset();'
 fi
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### E. SS-Purge-OPcache: Purge OPcache Via PHP Script (Fallback) ##################################
+####################################################################################################
+
+## creates and executes temporary PHP script to manually reset OPcache via curl request ##
+## always runs regardless of WP-CLI method, ensures OPcache is cleared properly ##
+
+## generate unique filename ##
+RANDOM_STRING_PURGE_OPCACHE=$(openssl rand -hex 12)
+PURGE_OPCACHE_FILENAME="purge-${RANDOM_STRING_PURGE_OPCACHE}.php"
+PURGE_OPCACHE_FILEPATH="/var/www/html/${PURGE_OPCACHE_FILENAME}"
+
+## delete temp script if it already exists ##
+ss_rm "${PURGE_OPCACHE_FILEPATH}"
+
+## create temp php script to reset opcache ##
+echo "<?php if (function_exists('opcache_reset')) { opcache_reset(); } ?>" > "${PURGE_OPCACHE_FILEPATH}"
+
+## allow php-fpm to safely read/execute the temp script ##
+chown root:www-data "${PURGE_OPCACHE_FILEPATH}"
+chmod 0644 "${PURGE_OPCACHE_FILEPATH}" ## must be 0644
+
+## execute temp script via https (wget) request ##
+# curl --silent --show-error --fail --max-time 5 --connect-timeout 3 --retry 3 --retry-connrefused "https://${SITE_FULL_DOMAIN}/${PURGE_OPCACHE_FILENAME}" > /dev/null
+wget --quiet --spider --timeout=3 --tries=3 --waitretry=5 "https://${SITE_FULL_DOMAIN}/${PURGE_OPCACHE_FILENAME}"
+
+## delete temp script ##
+ss_rm "${PURGE_OPCACHE_FILEPATH}"
+
+####################################################################################################
+#### F. SS-Purge-OPcache: Purge Physical OPcache Files #############################################
+####################################################################################################
+
+## removes physical OPcache files stored on disk if PHP file caching feature is enabled ##
+## required when opcache.file_cache is 1 as opcache_reset() does not clear these ##
+
+ ss_rm "${PATH_CACHE_OPCACHE}"*
+
+####################################################################################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -99,10 +133,11 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
+## Ref: ChatGPT
 ## Ref: https://www.php.net/manual/en/function.opcache-reset.php#121513
 ## Ref: https://stackoverflow.com/questions/5506913/bash-script-to-run-php-script
 ## Ref: https://coderwall.com/p/yrqrkw/delete-all-existing-wordpress-transients-in-mysql-database
-## Ref: https://stackoverflow.com/questions/10422574/can-i-remove-transients-in-the-wp-options-table-of-my-wordpress-install
+## Ref: https://stackoverflow.com/questions/10422574/can-i-remove-transients-in-mysql-database
 ## Ref: https://wordpress.stackexchange.com/questions/73477/is-there-any-danger-in-deleting-all-transients
 ## Ref: https://stackoverflow.com/questions/20033648/how-to-run-mysql-command-on-bash
 ## Ref: https://serverfault.com/questions/337818/how-to-force-mysql-to-connect-by-tcp-instead-of-a-unix-socket

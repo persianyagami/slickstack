@@ -1,10 +1,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; author: SlickStack ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; link: https://slickstack.io ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; mirror: https://mirrors.slickstack.io/modules/php-fpm/8.1/www-conf.txt ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; mirror: littlebizzy/slickstack/blob/master/modules/php-fpm/8.1/www-conf.txt ;;;;;;;;;;;;;;;;;;;
 ;;;; path: n/a (boilerplate) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; destination: /etc/php/8.1/fpm/pool.d/www.conf (after install) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; purpose: WWW pool configuration file boilerplate optimized for SlickStack servers ;;;;;;;;;;;;;
+;;;; purpose: www pool configuration file boilerplate optimized for SlickStack servers ;;;;;;;;;;;;;
 ;;;; module version: PHP-FPM 8.1.x ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; sourced by: php-fpm.conf ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; bash aliases: n/a (ss-install-php-config) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -36,7 +36,7 @@ pm.max_spawn_rate = @WWW_PM_MAX_SPAWN_RATE ;; ss = 32 (used only for dynamic) ;;
 pm.process_idle_timeout = @WWW_PM_PROCESS_IDLE_TIMEOUT; ;; ss = 10s (used only for ondemand)
 pm.max_requests = @WWW_PM_MAX_REQUESTS ;; ss = 500
 ;; pm.status_path = 
-;; pm.status_listen = 127.0.0.1:9001
+;; pm.status_listen = 127.0.0.1:9001 ;; PHP 8.0+
 ;; ping.path = /ping
 ;; ping.response = pong
 ;; access.log = log/$pool.access.log
@@ -44,10 +44,10 @@ pm.max_requests = @WWW_PM_MAX_REQUESTS ;; ss = 500
 ;; slowlog = log/$pool.log.slow
 ;; request_slowlog_timeout = 0
 ;; request_slowlog_trace_depth = 20
-request_terminate_timeout = @WWW_REQUEST_TERMINATE_TIMEOUT ;; ss = 300
-; request_terminate_timeout_track_finished = no
+request_terminate_timeout = @WWW_REQUEST_TERMINATE_TIMEOUT ;; ss = 60s
+;; request_terminate_timeout_track_finished = no ;; PHP 7.3+
 rlimit_files = @WWW_RLIMIT_FILES ;; ss = 65535
-rlimit_core = @WWW_RLIMIT_CORE ;; ss = 0
+rlimit_core = 0
 ;; chroot =
 ;; chdir = /var/www
 catch_workers_output = yes
@@ -69,6 +69,7 @@ php_admin_flag[log_errors] = on
 ;;;; SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Ref: ChatGPT
 ;; Ref: https://github.com/php/php-src/blob/php-8.1.1/sapi/fpm/www.conf.in
 ;; Ref: https://gist.github.com/holmberd/44fa5c2555139a1a46e01434d3aaa512
 ;; Ref: https://easyengine.io/docs/prevent-mysql-crashing
@@ -91,5 +92,7 @@ php_admin_flag[log_errors] = on
 ;; Ref: https://developpaper.com/understand-php-process-manager-php-fpm/
 ;; Ref: https://www.php.net/manual/en/migration81.new-features.php
 ;; Ref: https://community.centminmod.com/threads/add-pm-max_spawn_rate-for-php-8-1-only-in-123-09beta01.22227/
+;; Ref: https://webdock.io/en/docs/perfect-server-stacks/stacks
+;; Ref: https://www.php.net/manual/en/migration80.new-features.php
 
 ;; SS_EOF

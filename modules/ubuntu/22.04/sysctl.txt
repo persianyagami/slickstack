@@ -1,175 +1,211 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: http://mirrors.slickstack.io/ubuntu/sysctl.txt ########################################
+#### mirror: littlebizzy/slickstack/blob/master/modules/ubuntu/22.04/sysctl.txt ####################
 #### path: /etc/sysctl.conf ########################################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Ubuntu kernel configuration file (symlink = /etc/sysctl.d/99-sysctl.conf) ############
 #### module version: Ubuntu 22.04 LTS ##############################################################
-#### bash aliases: n/a #############################################################################
+#### bash aliases: n/a (ss-install-ubuntu-kernel) ##################################################
 ####################################################################################################
 
 ## UBUNTU KERNEL OPTIMIZED FOR CLOUDFLARE + TRAFFIC SCALING (NON-CLUSTERED HIGH TRAFFIC) ##
 ## THESE SETTINGS PRETTY MUCH UNCAP EVERYTHING THAT UBUNTU LIMITS BY DEFAULT ##
 
 ####################################################################################################
-#### Ubuntu Kernel: Miscellaneous Settings #########################################################
+#### TABLE OF CONTENTS (Sysctl.conf) ###############################################################
 ####################################################################################################
 
-# kernel.domainname = example.com
-# kernel.printk = 3 4 1 3
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
 
-## disable SysRq keyboard shortcuts (we are not a desktop computer) ##
+## A. Kernel Settings
+## B. Filesystem Settings
+## C. Virtual Machine Settings
+## D. IPv6 Only Settings
+## E. IPv4 + IPv6 Settings
+## F. IPv4 Only Settings
+## G. Net Core Settings
+## H. Load Sub-Configuration Files
+
+####################################################################################################
+#### A. Sysctl.conf: Kernel Settings ###############################################################
+####################################################################################################
+
+## kernel logging and debugging settings ##
+kernel.printk = 3 4 1 3
 kernel.sysrq = 0
+kernel.yama.ptrace_scope = 1
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
 
-## maximum open files in cache (set to upper limit) ##
+## enhance security and system stability ##
+kernel.randomize_va_space = 2
+kernel.panic = 10
+kernel.panic_on_oops = 1
+
+## optimize process and thread management ##
+kernel.sched_autogroup_enabled = 0
+
+## optimize memory handling ##
+kernel.numa_balancing = 0
+
+####################################################################################################
+#### B. Sysctl.conf: Filesystem Settings ###########################################################
+####################################################################################################
+
+## set max open files for system and user processes ##
+fs.nr_open = 1048576
 fs.file-max = 2097152
 
-## protect system hard/soft links ##
+## harden file permissions ##
 fs.protected_hardlinks = 1
 fs.protected_symlinks = 1
 
-## big performance boost (published by PostgreSQL community) ##
-kernel.sched_migration_cost_ns = 5000000
-kernel.sched_autogroup_enabled = 0
+## optimize inotify limits for monitoring tools ##
+fs.inotify.max_user_watches = 524288
+fs.inotify.max_user_instances = 1024
 
 ####################################################################################################
-#### Sysctl.conf: Virtual Machine (VM) Settings ####################################################
+#### C. Sysctl.conf: Virtual Machine Settings ######################################################
 ####################################################################################################
 
 ## these settings ensure Linux is aware that swap can be used in case RAM is exhausted ##
 ## however we hardcode values here to avoid Linux over-relying on the swap file ##
 
-## minimize swapping ##
+## memory management ##
 vm.swappiness = 10
+vm.overcommit_memory = 1
+vm.max_map_count = 262144
+vm.min_free_kbytes = 32768
 
-## reduce filesystem lookups ##
-vm.vfs_cache_pressure=50
-
-## dirty ratios ##
-vm.dirty_ratio = 60
+## filesystem cache and io tuning ##
+vm.vfs_cache_pressure = 50
+vm.dirty_ratio = 10
 vm.dirty_background_ratio = 5
 
-## avoid Redis warning messages ##
-vm.overcommit_memory = 1
-
 ####################################################################################################
-#### Sysctl.conf: IPv4 + IPv6 Settings #############################################################
+#### D. Sysctl.conf: IPv6 Only Settings ############################################################
 ####################################################################################################
 
-## enable spoof protection (reverse-path filters) ##
-net.ipv4.conf.default.rp_filter = 1
-net.ipv4.conf.all.rp_filter = 1
-net.ipv6.conf.default.rp_filter = 1
-net.ipv6.conf.all.rp_filter = 1
+## to avoid causing networking conflicts SlickStack hardcodes support for IPv6 here ##
+## if your server does not have IPv6 assigned it should not cause problems ##
 
-## disable packet forwarding (retains SLAAC = Stateless Address Autoconfiguration) ##
-net.ipv4.ip_forward = 0
+## ipv6 enabled and stable addresses ##
+net.ipv6.conf.all.disable_ipv6 = 0
+net.ipv6.conf.all.use_tempaddr = 0
+
+## router advertisements and autoconfiguration ##
+net.ipv6.conf.all.accept_ra = 2
+net.ipv6.conf.all.autoconf = 1
+
+## disable ipv6 forwarding ##
 net.ipv6.conf.all.forwarding = 0
 
-## do not accept any ICMP redirects (prevents MITM attacks) ##
-net.ipv4.conf.default.accept_redirects = 0
+## disable ra on loopback ##
+net.ipv6.conf.lo.accept_ra = 0
+
+## disable duplicate address detection ##
+net.ipv6.conf.all.dad_transmits = 0
+
+## optimize neighbor cache ##
+net.ipv6.neigh.default.gc_thresh1 = 128
+net.ipv6.neigh.default.gc_thresh2 = 512
+net.ipv6.neigh.default.gc_thresh3 = 1024
+net.ipv6.neigh.default.gc_stale_time = 60
+
+####################################################################################################
+#### E. Sysctl.conf: IPv4 + IPv6 Settings ##########################################################
+####################################################################################################
+
+## icmp redirects and source routing ##
 net.ipv4.conf.all.accept_redirects = 0
-net.ipv6.conf.default.accept_redirects = 0
 net.ipv6.conf.all.accept_redirects = 0
-# net.ipv4.conf.all.secure_redirects = 0 ## repetitive
-# net.ipv6.conf.all.secure_redirects = 0 ## repetitive
-
-## accept RA redirects (supports IPv6 only) ##
-# net.ipv6.conf.all.accept_ra = 2 ## unsure
-
-## do not send ICMP redirects (we are not a router ... supports IPv4 only) ##
-net.ipv4.conf.default.send_redirects = 0
-net.ipv4.conf.all.send_redirects = 0
-
-## do not accept IP source route packets (we are not a router) ##
-net.ipv4.conf.default.accept_source_route = 0
 net.ipv4.conf.all.accept_source_route = 0
-net.ipv6.conf.default.accept_source_route = 0
 net.ipv6.conf.all.accept_source_route = 0
 
-## allowed local port range (set to maximum limit) ##
+## disable forwarding on loopback ##
+net.ipv4.conf.lo.forwarding = 0
+net.ipv6.conf.lo.forwarding = 0
+
+####################################################################################################
+#### F. Sysctl.conf: IPv4 Only Settings ############################################################
+####################################################################################################
+
+## spoof protection and redirects ##
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.all.secure_redirects = 1
+
+## local port range ##
 net.ipv4.ip_local_port_range = 1024 65535
-net.ipv6.ip_local_port_range = 1024 65535
 
-## log Martian packets (supports IPv4 only) ##
-net.ipv4.conf.all.log_martians = 1
+## tcp buffer allocations ##
+net.ipv4.tcp_mem = 786432 16777216 33554432
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
 
-####################################################################################################
-#### Ubuntu Kernel: TCP + UDP Settings #############################################################
-####################################################################################################
+## tcp time settings ##
+net.ipv4.tcp_timestamps = 1
+net.ipv4.tcp_keepalive_time = 7200
+net.ipv4.tcp_keepalive_intvl = 75
+net.ipv4.tcp_keepalive_probes = 9
+net.ipv4.tcp_fastopen = 3
 
-## enable TCP/IP SYN cookies (SYN flood protection) ##
+## tcp retries and metrics ##
+net.ipv4.tcp_retries1 = 3
+net.ipv4.tcp_retries2 = 15
+net.ipv4.tcp_no_metrics_save = 1
+
+## tcp performance enhancements ##
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_tw_reuse = 1
+
+## connection timeouts and scaling ##
 net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_fin_timeout = 15
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_max_orphans = 60000
+net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_rfc1337 = 1
 net.ipv4.tcp_max_syn_backlog = 2048
 net.ipv4.tcp_synack_retries = 2
 
-## max number of TCP sockets not attached to any user file handle (held by system) ##
-net.ipv4.tcp_max_orphans = 60000
-
-## disable TCP slow start (we are not a variable speed WAN) ##
-net.ipv4.tcp_slow_start_after_idle = 0
-
-## protect against TCP Time-Wait (assasinate!) ##
-net.ipv4.tcp_rfc1337 = 1
-
-## decrease the time default value for tcp_fin_timeout connection (copied from EasyEngine) ##
-net.ipv4.tcp_fin_timeout = 15
-
-## decrease the keepalive connection timeouts (copied from EasyEngine) ##
-net.ipv4.tcp_keepalive_time = 300
-net.ipv4.tcp_keepalive_probes = 5
-net.ipv4.tcp_keepalive_intvl = 15
-
-## increase buffer-space allocatable measured in (4096 bytes) units of pages (copied from EasyEngine) ## 
-net.ipv4.tcp_mem = 65536 131072 262144
-net.ipv4.udp_mem = 65536 131072 262144
-
-## increase the read-buffer space allocatable (copied from EasyEngine) ##
-net.ipv4.tcp_rmem = 8192 87380 16777216
-net.ipv4.udp_rmem_min = 16384
-
-## increase the write-buffer-space allocatable (copied from EasyEngine) ##
-net.ipv4.tcp_wmem = 8192 65536 16777216
-net.ipv4.udp_wmem_min = 16384
-
-## increase the tcp-time-wait buckets pool size to prevent simple DOS attacks (copied from EasyEngine) ##
-net.ipv4.tcp_max_tw_buckets = 1440000
-net.ipv4.tcp_tw_recycle = 1
-net.ipv4.tcp_tw_reuse = 1
-
 ####################################################################################################
-#### Ubuntu Kernel: Net Core Settings ##############################################################
+#### G. Sysctl.conf: Net Core Settings #############################################################
 ####################################################################################################
 
-## incoming connections backlog ##
-net.core.netdev_max_backlog = 65535
+## tcp buffer sizes for efficient data transfer ##
+net.core.rmem_default = 262144
+net.core.rmem_max = 4194304
+net.core.wmem_default = 262144
+net.core.wmem_max = 4194304
 
-## incoming connections ##
-net.core.somaxconn = 65535
+## incoming connection parameters ##
+net.core.netdev_max_backlog = 4096
+net.core.somaxconn = 1024
 
-## wmem settings ##
-net.core.wmem_default = 31457280
-net.core.wmem_max = 16777216
+## socket scheduling and option memory ##
+net.core.default_qdisc = fq
+net.core.optmem_max = 65536
 
-## rmem settings ##
-net.core.rmem_default = 31457280
-net.core.rmem_max = 16777216
+## network processing budget to balance cpu load ##
+net.core.netdev_budget = 600
+net.core.netdev_budget_usecs = 3000
 
-## option memory settings (copied from EasyEngine) ##
-net.core.optmem_max = 25165824
+####################################################################################################
+#### H. Sysctl.conf: Load Sub-Configuration Files ##################################################
+####################################################################################################
 
-## netdev budget settings ##
-net.core.netdev_budget = 50000
-net.core.netdev_budget_usecs = 5000
-
-## more custom configs ##
 ## /etc/sysctl.d/
 
 ####################################################################################################
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
+## Ref: ChatGPT
+## Ref: https://manpages.ubuntu.com/manpages/jammy/man5/sysctl.conf.5.html
 ## Ref: https://cromwell-intl.com/open-source/performance-tuning/tcp.html
 ## Ref: https://gist.github.com/magnetikonline/2760f98f6bf654d5ad79
 ## Ref: https://www.ndchost.com/wiki/server-administration/hardening-tcpip-syn-flood

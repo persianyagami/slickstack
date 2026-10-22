@@ -1,0 +1,401 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: littlebizzy/slickstack/blob/master/crons/01-cron-minutely.txt #########################
+#### path: /var/www/crons/01-cron-minutely #########################################################
+#### destination: n/a (static file) ################################################################
+#### purpose: SlickStack cron job *minutely* (01/14) will run every 1 minute #######################
+#### module version: Ubuntu 18.04-24.04 LTS ########################################################
+#### sourced by: root crontab ######################################################################
+#### bash aliases: ss cron 01|minutely #############################################################
+####################################################################################################
+
+## NEVER MODIFY ROOT CRONTAB OR SLICKSTACK CRON JOBS OR YOUR STACK WILL STOP WORKING ##
+## INSTEAD ADJUST INTERVAL_SS SETTINGS IN SS-CONFIG OR EDIT CUSTOM CRON FILES ##
+
+####################################################################################################
+#### TABLE OF CONTENTS (01-Cron-Minutely) ##########################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Validate (Restore) SS-Config
+## B. Validate (Restore) SS-Functions
+## C. Validate (Restore) SS-Check + SS-Worker
+## D. Source SS-Config + SS-Functions (After Validated)
+## E. Run SS-Check + SS-Worker In Case Overdue
+## F. Touch Timestamp File
+## G. Run FIFO Command Queue
+## H. Run WP-Cron (Conditional)
+## I. Run Custom Tasks (EDIT SOURCED FILES)
+## J. Run Scheduled Tasks (DO NOT EDIT)
+## K. Delete Lock File
+
+####################################################################################################
+#### A. 01-Cron-Minutely: Validate (Restore) SS-Config #############################################
+####################################################################################################
+
+## this attempts to restore missing or damaged ss-config using a recent valid backup ##
+## however it is not foolproof since there is no way to verify all settings ##
+
+## THIS SNIPPET DOES NOT RELY ON SS-CONFIG OR SS-FUNCTIONS
+## SNIPPET: ss cron jobs
+## UPDATED: 12FEB2026
+
+## validate ss-config integrity ##
+VALIDATE_SS_CONFIG=$(grep 'SS_BUILD' "/var/www/ss-config" 2>/dev/null)
+
+## restore from newest backup if ss-config invalid ##
+if [[ -z "${VALIDATE_SS_CONFIG}" ]]; then
+
+	## locate newest ss-config backup file ##
+	SS_CONFIG_RECENT_BACKUPS=$(find "/var/www/backups/config/" -maxdepth 1 -name 'ss-config.bak*' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n1 | cut -d' ' -f2-)
+
+	## continue only if backup file exists and is non-empty ##
+	if [[ -n "${SS_CONFIG_RECENT_BACKUPS}" && -s "${SS_CONFIG_RECENT_BACKUPS}" ]]; then
+
+		## confirm backup file contains required marker ##
+		SS_CONFIG_BEST_MATCH=$(grep -il 'SS_BUILD' "${SS_CONFIG_RECENT_BACKUPS}" 2>/dev/null)
+
+		## continue only if validated backup candidate found ##
+		if [[ -n "${SS_CONFIG_BEST_MATCH}" ]]; then
+
+			## copy backup to temporary ss-config file ##
+			cp -f "${SS_CONFIG_BEST_MATCH}" "/tmp/ss-config"
+
+			## validate temporary ss-config file before promotion ##
+			VALIDATE_TMP_SS_CONFIG=$(grep 'SS_BUILD' "/tmp/ss-config" 2>/dev/null)
+
+			## atomically restore validated ss-config ##
+			if [[ -n "${VALIDATE_TMP_SS_CONFIG}" ]]; then
+				mv -f "/tmp/ss-config" "/var/www/ss-config"
+				chown root:root "/var/www/ss-config"
+				chmod 0700 "/var/www/ss-config"
+			fi
+		fi
+	fi
+
+	## remove temporary file ##
+	rm -f "/tmp/ss-config"
+fi
+
+####################################################################################################
+#### B. 01-Cron-Minutely: Validate (Restore) SS-Functions ##########################################
+####################################################################################################
+
+## this attempts to restore missing or outdated ss-functions from our public mirrors ##
+## we perform this check before ss-install runs and before any cron job tasks ##
+
+## THIS SNIPPET DOES NOT RELY ON SS-CONFIG OR SS-FUNCTIONS
+## SNIPPET: ss-install, ss cron jobs
+## UPDATED: 15JAN2025
+
+VALIDATE_SS_FUNCTIONS=$(grep 'SS_EOF' /var/www/ss-functions)
+OUTDATED_SS_FUNCTIONS=$(find "/var/www/ss-functions" -maxdepth 1 -type f -mmin +720)
+
+## recover from github ##
+if [[ -z "${VALIDATE_SS_FUNCTIONS}" ]] || [[ -n "${OUTDATED_SS_FUNCTIONS}" ]]; then
+    wget --no-cache --no-cookies --quiet --inet4-only --tries=2 --timeout=3 --waitretry=2 -O /tmp/ss-functions https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-functions.txt || \
+    wget --no-cache --no-cookies --quiet --inet6-only --tries=2 --timeout=3 --waitretry=2 -O /tmp/ss-functions https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-functions.txt
+    VALIDATE_TMP_SS_FUNCTIONS=$(grep 'SS_EOF' /tmp/ss-functions)
+
+    ## recover from gitlab ##
+    if [[ -z "${VALIDATE_TMP_SS_FUNCTIONS}" ]]; then
+        wget --no-cache --no-cookies --quiet --inet4-only --tries=1 --timeout=2 -O /tmp/ss-functions https://gitlab.com/littlebizzy/slickstack/-/raw/master/bash/ss-functions.txt || \
+        wget --no-cache --no-cookies --quiet --inet6-only --tries=1 --timeout=2 -O /tmp/ss-functions https://gitlab.com/littlebizzy/slickstack/-/raw/master/bash/ss-functions.txt
+        VALIDATE_TMP_SS_FUNCTIONS=$(grep 'SS_EOF' /tmp/ss-functions)
+
+        ## recover from sourceforge ##
+        if [[ -z "${VALIDATE_TMP_SS_FUNCTIONS}" ]]; then
+            wget --no-cache --no-cookies --quiet --inet4-only --tries=1 --timeout=1 -O /tmp/ss-functions https://sourceforge.net/p/slickstack/code/ci/master/tree/bash/ss-functions.txt?format=raw || \
+            wget --no-cache --no-cookies --quiet --inet6-only --tries=1 --timeout=1 -O /tmp/ss-functions https://sourceforge.net/p/slickstack/code/ci/master/tree/bash/ss-functions.txt?format=raw
+            VALIDATE_TMP_SS_FUNCTIONS=$(grep 'SS_EOF' /tmp/ss-functions)
+        fi
+    fi
+
+    ## replace ss-functions if valid ##
+    if [[ -n "${VALIDATE_TMP_SS_FUNCTIONS}" ]]; then
+        mkdir -p /var/www
+        mv -f /tmp/ss-functions /var/www/ss-functions
+        chown root:root /var/www/ss-functions
+        chmod 0700 /var/www/ss-functions
+    else
+        false
+    fi
+
+    ## cleanup temp files ##
+    rm -f /tmp/ss-functions
+fi
+
+####################################################################################################
+#### C. 01-Cron-Minutely: Validate (Restore) SS-Check + SS-Worker ##################################
+####################################################################################################
+
+## this attempts to restore damaged or outdated ss-check and ss-worker bash scripts ##
+## they are critical to maintenance tasks and keeping the ss scripts updated ##
+
+## THIS SNIPPET DOES NOT RELY ON SS-CONFIG OR SS-FUNCTIONS
+## SNIPPET: ss cron jobs
+## UPDATED: 15JAN2025
+
+VALIDATE_SS_CHECK=$(grep 'SS_EOF' /var/www/ss-check)
+OUTDATED_SS_CHECK=$(find "/var/www/ss-check" -maxdepth 1 -type f -mmin +720)
+
+## recover from github ##
+if [[ -z "${VALIDATE_SS_CHECK}" ]] || [[ -n "${OUTDATED_SS_CHECK}" ]]; then
+    wget --no-cache --no-cookies --quiet --inet4-only --tries=2 --timeout=3 --waitretry=2 -O /tmp/ss-check https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-check.txt || \
+    wget --no-cache --no-cookies --quiet --inet6-only --tries=2 --timeout=3 --waitretry=2 -O /tmp/ss-check https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-check.txt
+    VALIDATE_TMP_SS_CHECK=$(grep 'SS_EOF' /tmp/ss-check)
+
+    ## recover from gitlab ##
+    if [[ -z "${VALIDATE_TMP_SS_CHECK}" ]]; then
+        wget --no-cache --no-cookies --quiet --inet4-only --tries=1 --timeout=2 -O /tmp/ss-check https://gitlab.com/littlebizzy/slickstack/-/raw/master/bash/ss-check.txt || \
+        wget --no-cache --no-cookies --quiet --inet6-only --tries=1 --timeout=2 -O /tmp/ss-check https://gitlab.com/littlebizzy/slickstack/-/raw/master/bash/ss-check.txt
+        VALIDATE_TMP_SS_CHECK=$(grep 'SS_EOF' /tmp/ss-check)
+
+        ## recover from sourceforge ##
+        if [[ -z "${VALIDATE_TMP_SS_CHECK}" ]]; then
+            wget --no-cache --no-cookies --quiet --inet4-only --tries=1 --timeout=1 -O /tmp/ss-check https://sourceforge.net/p/slickstack/code/ci/master/tree/bash/ss-check.txt?format=raw || \
+            wget --no-cache --no-cookies --quiet --inet6-only --tries=1 --timeout=1 -O /tmp/ss-check https://sourceforge.net/p/slickstack/code/ci/master/tree/bash/ss-check.txt?format=raw
+            VALIDATE_TMP_SS_CHECK=$(grep 'SS_EOF' /tmp/ss-check)
+        fi
+    fi
+
+    ## replace ss-check if valid ##
+    if [[ -n "${VALIDATE_TMP_SS_CHECK}" ]]; then
+        mkdir -p /var/www
+        mv -f /tmp/ss-check /var/www/ss-check
+        chown root:root /var/www/ss-check
+        chmod 0700 /var/www/ss-check
+    else
+        false
+    fi
+
+    ## cleanup temp files ##
+    rm -f /tmp/ss-check
+fi
+
+VALIDATE_SS_WORKER=$(grep 'SS_EOF' /var/www/ss-worker)
+OUTDATED_SS_WORKER=$(find "/var/www/ss-worker" -maxdepth 1 -type f -mmin +720)
+
+## recover from github ##
+if [[ -z "${VALIDATE_SS_WORKER}" ]] || [[ -n "${OUTDATED_SS_WORKER}" ]]; then
+    wget --no-cache --no-cookies --quiet --inet4-only --tries=2 --timeout=3 --waitretry=2 -O /tmp/ss-worker https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-worker.txt || \
+    wget --no-cache --no-cookies --quiet --inet6-only --tries=2 --timeout=3 --waitretry=2 -O /tmp/ss-worker https://raw.githubusercontent.com/littlebizzy/slickstack/master/bash/ss-worker.txt
+    VALIDATE_TMP_SS_WORKER=$(grep 'SS_EOF' /tmp/ss-worker)
+
+    ## recover from gitlab ##
+    if [[ -z "${VALIDATE_TMP_SS_WORKER}" ]]; then
+        wget --no-cache --no-cookies --quiet --inet4-only --tries=1 --timeout=2 -O /tmp/ss-worker https://gitlab.com/littlebizzy/slickstack/-/raw/master/bash/ss-worker.txt || \
+        wget --no-cache --no-cookies --quiet --inet6-only --tries=1 --timeout=2 -O /tmp/ss-worker https://gitlab.com/littlebizzy/slickstack/-/raw/master/bash/ss-worker.txt
+        VALIDATE_TMP_SS_WORKER=$(grep 'SS_EOF' /tmp/ss-worker)
+
+        ## recover from sourceforge ##
+        if [[ -z "${VALIDATE_TMP_SS_WORKER}" ]]; then
+            wget --no-cache --no-cookies --quiet --inet4-only --tries=1 --timeout=1 -O /tmp/ss-worker https://sourceforge.net/p/slickstack/code/ci/master/tree/bash/ss-worker.txt?format=raw || \
+            wget --no-cache --no-cookies --quiet --inet6-only --tries=1 --timeout=1 -O /tmp/ss-worker https://sourceforge.net/p/slickstack/code/ci/master/tree/bash/ss-worker.txt?format=raw
+            VALIDATE_TMP_SS_WORKER=$(grep 'SS_EOF' /tmp/ss-worker)
+        fi
+    fi
+
+    ## replace ss-worker if valid ##
+    if [[ -n "${VALIDATE_TMP_SS_WORKER}" ]]; then
+        mkdir -p /var/www
+        mv -f /tmp/ss-worker /var/www/ss-worker
+        chown root:root /var/www/ss-worker
+        chmod 0700 /var/www/ss-worker
+    else
+        false
+    fi
+
+    ## cleanup temp files ##
+    rm -f /tmp/ss-worker
+fi
+
+####################################################################################################
+#### D. 01-Cron-Minutely: Source SS-Config + SS-Functions (After Validated) ########################
+####################################################################################################
+
+## at this point we know that ss-config and ss-functions exist or have been restored ##
+## so we source them now to carry on with custom and scheduled cron job tasks ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### E. 01-Cron-Minutely: Run SS-Check + SS-Worker In Case Overdue #################################
+####################################################################################################
+
+## SlickStack crontab and cron jobs can self-heal but that is not enough to recover ##
+## this snippet ensures that ss-check and ss-worker are run in case overdue ##
+
+## SNIPPET: ss cron jobs
+## UPDATED: 15JAN2025
+
+OUTDATED_SECONDS=900 ## 15 minutes
+CURRENT_TIME=$(date +%s)
+
+## run ss-check if overdue ##
+MODIFIED_TIMESTAMP_SS_CHECK=$(stat -c %Y "${TIMESTAMP_SS_CHECK}")
+TIME_DIFFERENCE_SS_CHECK=$(( "${CURRENT_TIME}" - "${MODIFIED_TIMESTAMP_SS_CHECK}" ))
+if [[ "${TIME_DIFFERENCE_SS_CHECK}" -gt "${OUTDATED_SECONDS}" ]]; then
+    source "${PATH_SS_CHECK}"
+fi
+
+## run ss-worker if overdue ##
+MODIFIED_TIMESTAMP_SS_WORKER=$(stat -c %Y "${TIMESTAMP_SS_WORKER}")
+TIME_DIFFERENCE_SS_WORKER=$(( "${CURRENT_TIME}" - "${MODIFIED_TIMESTAMP_SS_WORKER}" ))
+if [[ "${TIME_DIFFERENCE_SS_WORKER}" -gt "${OUTDATED_SECONDS}" ]]; then
+    source "${PATH_SS_WORKER}"
+fi
+
+####################################################################################################
+#### F. 01-Cron-Minutely: Touch Timestamp File #####################################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+ss_touch "${TIMESTAMP_01_CRON_MINUTELY}"
+
+####################################################################################################
+#### G. 01-Cron-Minutely: Run FIFO Command Queue ###################################################
+####################################################################################################
+
+## here we read the FIFO queue to run SlickStack scripts from the WP Admin dashboard ##
+## Admin users in WordPress can send commands to the FIFO for safe execution ##
+
+if [[ -p "${PATH_FIFO}" && -s "${PATH_FIFO}" ]]; then
+    ## read the FIFO file and execute each command (non-blocking) ##
+    while read -r -t 2 command < "${PATH_FIFO}"; do
+        ## list of allowed commands ##
+        approved_commands=("command1" "command2" "/bin/bash /var/www/ss-reset-password-sftp")
+
+        ## check if command is allowed ##
+        if [[ " ${approved_commands[*]} " =~ " ${command} " ]]; then
+            eval "${command}"
+        fi
+    done
+fi
+
+####################################################################################################
+#### H. 01-Cron-Minutely: Run WP-Cron (Conditional) ################################################
+####################################################################################################
+
+## this snippet will run WP-Cron via the server if changed in your ss-config settings ##
+## WP-CLI is the default as it works much better (also required for Multisite) ##
+
+## PATTERN: ss cron jobs
+## UPDATED: 02MAY2026
+
+## run wp-cron if set to minutely ##
+if [[ "${WP_CRON_INTERVAL}" == "minutely" ]]; then
+
+    ## use wp-cli unless set to server or if running multisite ##
+    if [[ "${WP_CRON_METHOD}" != "server" || "${WP_MULTISITE}" == "true" ]]; then
+
+        if [[ "${WP_MULTISITE}" == "true" ]]; then
+            ## run wp-cron for all sites in multisite ##
+            sudo -u www-data "${PATH_WP_CLI}" --path="${PATH_WEB_ROOT}" site list --field=url | sudo -u www-data xargs -I {} "${PATH_WP_CLI}" --path="${PATH_WEB_ROOT}" cron event run --due-now --url="{}" 2>> /var/www/logs/wp-cli.log
+        else
+            ## run wp-cron for single site ##
+            sudo -u www-data "${PATH_WP_CLI}" --path="${PATH_WEB_ROOT}" cron event run --due-now 2>> /var/www/logs/wp-cli.log
+        fi
+
+    else
+        ## use server method ##
+        sudo -u www-data "${PATH_PHP_BIN}" "${PATH_WP_CRON_PHP}" >/dev/null 2>&1
+    fi
+
+fi
+
+####################################################################################################
+#### I. 01-Cron-Minutely: Run Custom Tasks (EDIT SOURCED FILES) ####################################
+####################################################################################################
+
+## this will run custom shell commands that you can save in a reserved filename below ##
+## carefully consider server resources and best practices before customizing ##
+
+source "${PATH_01_CRON_MINUTELY_CUSTOM}"
+
+####################################################################################################
+#### J. 01-Cron-Minutely: Run Scheduled Tasks (DO NOT EDIT) ########################################
+####################################################################################################
+
+## the below tasks will be called if configured to run at this interval in ss-config ##
+## certain tasks are automatically called if the relevant interval is missing ##
+
+## N/A
+
+####################################################################################################
+#### K. 01-Cron-Minutely: Delete Lock File #########################################################
+####################################################################################################
+
+## here we delete the lock file associated with this cron job to clear the cron queue ##
+## this is technically not necessary but we do it anyway for increased surety ##
+
+ss_rm "${LOCK_01_CRON_MINUTELY}"
+
+####################################################################################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
+####################################################################################################
+
+## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
+## chmod 0700 means only the root/sudo users can execute any SlickStack scripts ##
+
+## THIS SNIPPET DOES NOT RELY ON SS-CONFIG OR SS-FUNCTIONS
+## SNIPPET: ss bash scripts, ss cron jobs
+## UPDATED: 02JUL2022
+
+chown root:root /var/www/ss* ## must be root:root
+chown root:root /var/www/crons/*cron* ## must be root:root
+chown root:root /var/www/crons/custom/*cron* ## must be root:root
+chmod 0700 /var/www/ss* ## 0700 means only root/sudo can execute
+chmod 0700 /var/www/crons/*cron* ## 0700 means only root/sudo can execute
+chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks Interwebz) ################
+####################################################################################################
+
+## Ref: ChatGPT
+## Ref: https://bash.cyberciti.biz/guide/Setting_up_permissions_on_a_script
+## Ref: https://stackoverflow.com/questions/22861580/bash-script-check-if-a-file-contains-a-specific-line
+## Ref: https://stackoverflow.com/questions/4749330/how-to-test-if-string-exists-in-file-with-bash/14201583
+## Ref: https://stackoverflow.com/questions/11287861/how-to-check-if-a-file-contains-a-specific-string-using-bash
+## Ref: https://stackoverflow.com/questions/4749330/how-to-test-if-string-exists-in-file-with-bash-
+## Ref: https://stackoverflow.com/questions/42377739/while-file-doesnt-contain-string-bash
+## Ref: https://stackoverflow.com/questions/29378566/i-just-assigned-a-variable-but-echo-variable-shows-something-else
+## Ref: https://fluentcrm.com/docs/replace-wordpress-cron-with-a-real-cron-job/
+## Ref: https://stackoverflow.com/questions/18656678/how-to-get-path-of-the-php-binary-on-server-where-it-is-located
+## Ref: https://tldp.org/LDP/abs/html/nestedifthen.html
+## Ref: https://unix.stackexchange.com/questions/282901/find-latest-file-created-in-folder-and-grep-contents
+## Ref: https://serverfault.com/questions/69283/when-to-use-single-quote-double-quote-in-grep
+## Ref: https://unix.stackexchange.com/questions/277412/cp-vs-mv-which-operation-is-more-efficient
+## Ref: https://programmerr47.medium.com/dont-put-constants-everywhere-b3bb9cb0bbae
+## Ref: https://stackoverflow.com/questions/4234129/should-i-use-constants-instead-of-strings-even-if-the-strings-are-only-ever-used
+## Ref: https://unix.stackexchange.com/questions/236659/what-is-the-point-of-mv-f
+## Ref: https://stackoverflow.com/questions/89989/is-there-a-curl-wget-option-that-says-not-to-save-files-upon-http-errors
+## Ref: https://unix.stackexchange.com/questions/47584/in-a-bash-script-using-the-conditional-or-in-an-if-statement
+## Ref: https://serverfault.com/questions/52034/what-is-the-difference-between-double-and-single-square-brackets-in-bash
+## Ref: https://unix.stackexchange.com/questions/92346/why-does-find-mtime-1-only-return-files-older-than-2-days
+## Ref: https://unix.stackexchange.com/questions/257960/how-do-i-find-files-older-than-1-days-using-mtime
+## Ref: https://stackoverflow.com/questions/28337961/find-out-if-file-has-been-modified-within-the-last-2-minutes
+## Ref: https://wordpress.stackexchange.com/questions/167238/running-wp-cron-on-multisite-the-right-way
+## Ref: https://stackoverflow.com/questions/56782728/how-to-have-wp-cli-commands-work-in-a-bash-script-from-cron
+## Ref: https://serverfault.com/questions/654785/wp-cli-doesnt-run-from-cronjob
+## Ref: https://community.kinsta.com/t/enabling-cron-job/599
+## Ref: https://community.localwp.com/t/setup-crontab-to-run-wp-cron/4438
+## Ref: https://serverfault.com/questions/352835/crontab-running-as-a-specific-user
+## Ref: https://gist.github.com/nawawi/ae2506f486672b7ce979895cd124c584
+## Ref: https://gist.github.com/nawawi/ec01e902bbb6a2fed3c09df03f383976
+
+## SS_EOF

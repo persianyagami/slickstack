@@ -1,7 +1,7 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/modules/nginx/sites/development.txt #####################
+#### mirror: littlebizzy/slickstack/blob/master/modules/nginx/sites/development.txt ################
 #### path: n/a (boilerplate) #######################################################################
 #### destination: /var/www/sites/development (after install) #######################################
 #### purpose: Nginx server block boilerplate optimized for SlickStack dev sites ####################
@@ -23,6 +23,15 @@
 ## A. Canonical Dev Subdomain
 ## B. Well-Known Directory
 ## C. Redirect AMP Requests
+
+
+#### for Certbot only ##
+server {
+    listen 80;
+	listen [::]:80;
+    server_name dev.@SITE_DOMAIN_EXCLUDING_WWW;
+	return 301 https://dev.@SITE_DOMAIN_EXCLUDING_WWW$request_uri;
+}
 
 ####################################################################################################
 #### A. Server Block (Development): Canonical Dev Subdomain ########################################
@@ -174,6 +183,10 @@ if ($query_string ~ "^amp(.*)$") {
 ## we also have to optimize cookies here too since working with WordPress ##
 
 location ~* \.php$ {
+
+limit_req zone=php_second burst=1 nodelay;
+limit_req zone=php_minute burst=3 nodelay;
+
 set $rt_session "";
 if ($http_cookie ~* "wp_woocommerce_session_[^=]*=([^%]+)%7C") {
 	set $rt_session wp_woocommerce_session_$1;
@@ -209,6 +222,10 @@ set $setcookie "Path=/; HttpOnly; Secure";
 ## next we enable rate-limiting to prevent automated brute force hack attempts ##
 
 location = /wp-login.php {
+
+	limit_req zone=wplogin_second burst=1 nodelay;
+	limit_req zone=wplogin_minute burst=3 nodelay;
+
 	include /etc/nginx/fastcgi.conf;
 	try_files $uri =404;
 	fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -219,7 +236,6 @@ location = /wp-login.php {
 	fastcgi_cache_valid 200 301 404 @CACHEVALID;
 	fastcgi_cache_bypass $skip_cache;
 	fastcgi_no_cache $skip_cache;
-	limit_req zone=wplogin burst=1 nodelay;
 }
 
 ####################################################################################################
@@ -229,17 +245,7 @@ location = /wp-login.php {
 ## this snippet allows you to load Adminer via the frontend (requires PHP-FPM routing) ##
 ## we include some basic rate limiting rules to avoid attacks on these URLs ##
 
-location ^~ /adminer {
-	limit_req zone=adminer burst=1 nodelay;
-	alias /var/www/meta/adminer.php;
-	include /etc/nginx/fastcgi.conf;
-	try_files $uri =404;
-	fastcgi_split_path_info ^(.+\.php)(/.+)$;
-	fastcgi_pass 127.0.0.1:9000;
-	fastcgi_read_timeout 300;
-	fastcgi_index index.php;
-	fastcgi_cache off;
-}
+include /var/www/sites/includes/adminer[.]conf;
 
 ####################################################################################################
 #### Server Block (Development): HTML Files ########################################################

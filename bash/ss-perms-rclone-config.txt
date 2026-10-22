@@ -37,7 +37,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_PERMS_RCLONE_CONFIG}"
 
 ####################################################################################################
@@ -45,19 +44,22 @@ ss_touch "${TIMESTAMP_SS_PERMS_RCLONE_CONFIG}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-perms-rclone-config... ${COLOR_RESET}"
 
 ####################################################################################################
 #### SS-Perms-Rclone-Config: Reset Permissions (Rclone Config) #####################################
 ####################################################################################################
 
-#
+## lock rclone credentials to root only ##
+if [[ -f "${PATH_RCLONE_CONF}" ]]; then
+    chown root:root "${PATH_RCLONE_CONF}" ## must be root:root
+    chmod 0600 "${PATH_RCLONE_CONF}" ## must be 0600
+fi
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##

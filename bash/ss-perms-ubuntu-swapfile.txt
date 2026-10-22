@@ -37,7 +37,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_PERMS_UBUNTU_SWAPFILE}"
 
 ####################################################################################################
@@ -45,16 +44,15 @@ ss_touch "${TIMESTAMP_SS_PERMS_UBUNTU_SWAPFILE}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-perms-ubuntu-swapfile... ${COLOR_RESET}"
 
 ####################################################################################################
-#### SS-Perms-Ubuntu-Swap: Reset Permissions (SSH) #################################################
+#### SS-Perms-Ubuntu-Swapfile: Reset Permissions (Ubuntu Swapfile) #################################
 ####################################################################################################
 
-mkdir /var/www/cache/system
+ss_mkdir /var/www/cache/system
 chown root:root /var/www/cache/system ## must be root:root
 chmod 0600 /var/www/cache/system ## must be 0600
 
@@ -64,7 +62,7 @@ if [[ -f "/var/www/cache/system/swapfile" ]]; then
 fi
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##

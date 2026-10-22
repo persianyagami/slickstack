@@ -1,7 +1,7 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/modules/nginx/nginx-conf.txt ############################
+#### mirror: littlebizzy/slickstack/blob/master/modules/nginx/nginx-conf.txt #######################
 #### path: n/a (boilerplate) #######################################################################
 #### destination: /etc/nginx/nginx.conf (after install) ############################################
 #### purpose: Nginx main configuration file (server block configuration files are separate) ########
@@ -10,8 +10,8 @@
 #### bash aliases: n/a (ss-install-nginx-config) ###################################################
 ####################################################################################################
 
-## NGINX OPTIMIZED FOR CLOUDFLARE AND TRAFFIC SCALING (NON-CLUSTERED HIGH TRAFFIC) ##
-## FASTCGI CACHE AND SSL SETTINGS ARE ALSO INCLUDED IN THIS BOILERPLATE ##
+## NGINX OPTIMIZED FOR CLOUDFLARE AND HIGH-TRAFFIC SCALING (NON-CLUSTERED SERVERS) ##
+## CONDITIONAL SUB-CONFIG FILES ARE INCLUDED BASED ON SS-CONFIG SETTINGS ##
 
 ####################################################################################################
 #### TABLE OF CONTENTS (Nginx.conf) ################################################################
@@ -22,26 +22,36 @@
 
 ## A. General Settings
 ## B. Event Handling Settings
-## C.
-## D. FastCGI Cache Settings
-## E. Open File Cache Settings
-## F. Buffer Settings
-## G. Timeout/Keepalive Settings
-## H. HTTP Header Settings
+## C. HTTP Block Settings
+## D. MIME File Type Settings
+## E. Indexing Settings 
+## F. FastCGI Cache Settings
+## G. Open File Cache Settings
+## H. Buffer Settings
+## I. Timeout + Keepalive Settings
+## J. Browser Cache Settings
+## K. Gzip Compression Settings
+## L. HTTP Header Settings
+## M. Rate-Limiting Settings
+## N. Logging Settings
+## O. Include Sub-Config Files + Server Blocks
 
 ####################################################################################################
 #### A. Nginx.conf: General Settings ###############################################################
 ####################################################################################################
 
-## for stability and simplicity Nginx always runs as www-data with auto worker processes ##
-## worker_rlimit_nofile should be tuned in relevance to worker_connections (etc) ##
+## for ultimate stability SlickStack runs Nginx as www-data with auto worker_processes ##
+## worker_rlimit_nofile should be tuned in relation to worker_connections et al ##
 
 user www-data;
 worker_processes auto;
 worker_rlimit_nofile @NGINX_WORKER_RLIMIT_NOFILE;
+worker_priority @NGINX_WORKER_PRIORITY;
+worker_shutdown_timeout 10s;
+timer_resolution 100ms;
 pid /run/nginx.pid;
 
-## include Nginx modules ##
+## include nginx modules ##
 include /etc/nginx/modules-enabled/*.conf;
 
 ####################################################################################################
@@ -49,7 +59,7 @@ include /etc/nginx/modules-enabled/*.conf;
 ####################################################################################################
 
 ## virtually all Linux servers should use epoll and multi_accept so they are hardcoded ##
-## worker_connections should be tuned in relevance to worker_rlimit_nofile (etc) ##
+## worker_connections should be tuned in relevance to worker_rlimit_nofile et al ##
 
 events {
 
@@ -60,48 +70,92 @@ use epoll;
 }
 
 ####################################################################################################
-#### C. Nginx.conf: Miscellaneous Settings ############################################################
+#### C. Nginx.conf: HTTP Block Settings ############################################################
 ####################################################################################################
 
 http {
 
+## optimize kernel-level file serving ##
 sendfile on;
 tcp_nopush on;
 tcp_nodelay on;
-# port_in_redirect off;
+
+## disable unwanted redirects ##
+port_in_redirect off;
 server_name_in_redirect off;
+
+## server name hash tuning (important for multisite) ##
 server_names_hash_bucket_size @NGINX_SERVER_NAMES_HASH_BUCKET_SIZE;
 server_names_hash_max_size @NGINX_SERVER_NAMES_MAX_HASH_SIZE;
+
+## types hash and variable hash tuning ##
 types_hash_max_size @NGINX_TYPES_MAX_HASH_SIZE;
+variables_hash_max_size @NGINX_VARIABLES_HASH_MAX_SIZE;
+variables_hash_bucket_size @NGINX_VARIABLES_HASH_BUCKET_SIZE;
 
 ####################################################################################################
-#### D. Nginx.conf: FastCGI Cache Settings #########################################################
+#### D. Nginx.conf: MIME File Type Settings ########################################################
+####################################################################################################
+
+include /etc/nginx/mime.types;
+default_type application/octet-stream;
+
+####################################################################################################
+#### E. Nginx.conf: Indexing Settings ##############################################################
+####################################################################################################
+
+## for security and stability reasons we disable autoindexing and default to PHP indexes ##
+## this allows HTML pages to load properly but prioritizes PHP over HTML loading ##
+
+autoindex off;
+index index.php index.html;
+
+####################################################################################################
+#### F. Nginx.conf: FastCGI Cache Settings #########################################################
 ####################################################################################################
     
 ## FastCGI Cache is arguably the most powerful Nginx feature for scaling high-traffic sites ##
 ## whenever possible maintain aggressive (higher) settings to improve performance ##
-    
+
+## optional path cleaner (make it optional in ss-config) ##
+map $request_uri $request_path { 
+	~(?<captured_path>[^?]*) $captured_path; 
+}
+
+## cache storage ##
 fastcgi_cache_path /var/www/cache/nginx levels=1:2 keys_zone=WORDPRESS:@FCGI_CACHE_MEMORY inactive=@FCGI_CACHE_INACTIVE max_size=@FCGI_CACHE_MAX_SIZE;
-fastcgi_cache_key "$scheme$request_method$host$request_uri$rt_session";
 
-fastcgi_cache_use_stale error timeout invalid_header updating http_500;
-fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
+## cache key ##
+fastcgi_cache_key "$scheme$request_method$host$request_uri$ss_session";
+## fastcgi_cache_key "$scheme$request_method$host$request_path$ss_session";
+
+## cache behavior ##
 fastcgi_cache_lock on;
-fastcgi_cache_background_update off;
+fastcgi_cache_use_stale error timeout invalid_header updating http_500;
+fastcgi_cache_background_update on;
+fastcgi_cache_revalidate on;
 
+## ignore upstream headers ##
+fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
+
+## error behavior ##
+fastcgi_intercept_errors off;
+
+## timeouts ##
 fastcgi_connect_timeout @FCGI_CONNECT_TIMEOUT;
 fastcgi_read_timeout @FCGI_READ_TIMEOUT;
 fastcgi_send_timeout @FCGI_SEND_TIMEOUT;
 
+## buffering and temp files ##
 fastcgi_buffering on;
-# fastcgi_buffers @FCGI_BUFFERS;
-# fastcgi_buffer_size @FCGI_BUFFER_SIZE;
-# fastcgi_busy_buffers_size @FCGI_BUSY_BUFFERS_SIZE;
-# fastcgi_temp_file_write_size @FCGI_TEMP_FILE_WRITE_SIZE;
-fastcgi_intercept_errors off;
-    
+fastcgi_buffer_size @FCGI_BUFFER_SIZE;
+fastcgi_buffers @FCGI_BUFFERS;
+fastcgi_busy_buffers_size @FCGI_BUSY_BUFFERS_SIZE;
+fastcgi_temp_file_write_size @FCGI_TEMP_FILE_WRITE_SIZE;
+fastcgi_max_temp_file_size 1024m;
+
 ####################################################################################################
-#### E. Nginx.conf: Open File Cache Settings #######################################################
+#### G. Nginx.conf: Open File Cache Settings #######################################################
 ####################################################################################################
 
 ## Open File Cache is one of the most effective (and underrated) features to scale Nginx ##
@@ -111,9 +165,9 @@ open_file_cache max=@OPEN_FILE_CACHE_MAX inactive=@OPEN_FILE_CACHE_INACTIVE;
 open_file_cache_valid @OPEN_FILE_CACHE_VALID;
 open_file_cache_min_uses @OPEN_FILE_CACHE_MIN_USES;
 open_file_cache_errors @OPEN_FILE_CACHE_ERRORS;
-	
+
 ####################################################################################################
-#### F. Nginx.conf: Buffer Settings ################################################################
+#### H. Nginx.conf: Buffer Settings ################################################################
 ####################################################################################################
 
 client_max_body_size @NGINX_CLIENT_MAX_BODY_SIZE;
@@ -122,7 +176,7 @@ client_header_buffer_size @NGINX_CLIENT_HEADER_BUFFER_SIZE;
 large_client_header_buffers @NGINX_LARGE_CLIENT_HEADER_BUFFERS;
 
 ####################################################################################################
-#### G. Nginx.conf: Timeout/Keepalive Settings #####################################################
+#### I. Nginx.conf: Timeout + Keepalive Settings ###################################################
 ####################################################################################################
 
 ## when scaling high traffic websites it is important to keep timeouts relatively short ##
@@ -134,46 +188,9 @@ keepalive_timeout @NGINX_KEEPALIVE_TIMEOUT;
 keepalive_requests @NGINX_KEEPALIVE_REQUESTS;
 send_timeout @NGINX_SEND_TIMEOUT;
 reset_timedout_connection on;
-	
-####################################################################################################
-#### H. Nginx.conf: HTTP Header Settings ###########################################################
-####################################################################################################
-
-## several HTTP security headers are well-known best practices and are thus hardcoded ##
-## to noindex your entire website, set SITE_NOINDEX to true in your ss-config ##
-
-## powered by ##
-add_header X-Powered-By "SlickStack";
-
-## security headers ##
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-add_header X-Frame-Options SAMEORIGIN;
-add_header X-Content-Type-Options nosniff;
-add_header X-XSS-Protection "1; mode=block";
-add_header Referrer-Policy "strict-origin-when-cross-origin";
-add_header Permissions-Policy "camera=(), encrypted-media=(), geolocation=(), microphone=(), midi=()";
-
-## noindex ##
-#@NOINDEX# add_header X-Robots-Tag "noindex, nofollow, nosnippet, noarchive";
-
-## set-cookie ##
-# add_header Set-Cookie "Path=/; HttpOnly; Secure"; ## delete
-add_header Set-Cookie "$setcookie";
-
-## cache-control ##
-add_header Cache-Control "$cachecontrol";
-
-## x-fastcgi-cache ##
-add_header X-FastCGI-Cache $upstream_cache_status;
-
-## hide nginx version ##
-server_tokens off;
-
-## unicode encoding ##
-charset utf-8;
 
 ####################################################################################################
-#### Nginx.conf: Browser Cache Settings ############################################################
+#### J. Nginx.conf: Browser Cache Settings #########################################################
 ####################################################################################################
 
 ## Pragma and Expires are outdated cache headers that conflict with Cache-Control header ##
@@ -182,35 +199,7 @@ charset utf-8;
 more_clear_headers "Expires Pragma";
 
 ####################################################################################################
-#### Nginx.conf: SSL Settings (Self-Signed OpenSSL + CA-Signed Lets Encrypt) #######################
-####################################################################################################
-
-## default OpenSSL certs below will be replaced if Certbot is enabled in your ss-config ##
-## SSL session tickets (and IDs) are deprecated in TLS 1.3, keep timeouts > 1 day ##
-
-## /etc/nginx/conf.d/openssl.conf included if OpenSSL enabled
-## /etc/nginx/conf.d/letsencrypt.conf included if Lets Encrypt enabled
-
-####################################################################################################
-#### Nginx.conf: Include MIME File Types Settings ##################################################
-####################################################################################################
-
-include /etc/nginx/mime.types;
-default_type application/octet-stream;
-
-####################################################################################################
-#### Nginx.conf: Logging Settings ##################################################################
-####################################################################################################
-
-## to improve scalability access_log is hardcode disabled to reduce CPU and disk usage ##
-## error_log is hardcoded in conjunction with SlickStack error handling settings ##
-
-access_log /var/www/logs/nginx-access.log;
-error_log /var/www/logs/nginx-error.log crit;
-log_not_found off;
-
-####################################################################################################
-#### Nginx.conf: Gzip Compression Settings #########################################################
+#### K. Nginx.conf: Gzip Compression Settings ######################################################
 ####################################################################################################
 
 ## gzip is powerful but is known to have diminishing returns when setup too aggressively ##
@@ -241,41 +230,122 @@ gzip_types
     text/x-component
     text/xml
     text/javascript;
-    
+
 ####################################################################################################
-#### Nginx.conf: Rate-Limiting Settings ############################################################
+#### L. Nginx.conf: HTTP Header Settings ###########################################################
+####################################################################################################
+
+## several HTTP security headers are well-known best practices and are thus hardcoded ##
+## to noindex your entire website, set SITE_NOINDEX to true in your ss-config ##
+
+## powered by ##
+add_header X-Powered-By "SlickStack" always;
+
+## security headers ##
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+#@NOT_FOR_MULTISITE# add_header Content-Security-Policy "frame-ancestors 'self' https://*.@SITE_ROOT_DOMAIN https://@SITE_ROOT_DOMAIN;" always;
+add_header X-Frame-Options SAMEORIGIN always;
+add_header X-Content-Type-Options nosniff always;
+add_header X-XSS-Protection "1; mode=block" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+# add_header X-Download-Options noopen always; ## IE only
+
+## Permissions Policy (can be customized) ##
+include /var/www/sites/includes/perms-policy[.]conf;
+
+## noindex ##
+#@NOINDEX# add_header X-Robots-Tag "noindex, nofollow, nosnippet, noarchive" always;
+
+## set-cookie ##
+# add_header Set-Cookie "Path=/; HttpOnly; Secure"; ## delete
+add_header Set-Cookie "$setcookie";
+
+## cache-control ##
+add_header Cache-Control "$cachecontrol";
+
+## x-fastcgi-cache ##
+add_header X-FastCGI-Cache $upstream_cache_status always;
+
+## hide nginx version ##
+server_tokens off;
+
+## unicode encoding ##
+charset utf-8;
+
+####################################################################################################
+#### M. Nginx.conf: Rate-Limiting Settings #########################################################
 ####################################################################################################
     
 ## basic rate limiting helps protect the server from small DDOS or brute force attacks ##
 ## it is useful for common targets but an external WAF firewall is recommended ##
-    
-limit_req_zone $binary_remote_addr zone=wplogin:10m rate=1r/s;
+
+## global limit requests zone ##
+limit_req_zone $binary_remote_addr zone=slickstack_server_second:10m rate=@LIMIT_REQUESTS_SERVER_SECONDr/s;
+limit_req_zone $binary_remote_addr zone=slickstack_server_minute:10m rate=@LIMIT_REQUESTS_SERVER_MINUTEr/m;
+
+## adminer limit requests zone ##
 limit_req_zone $binary_remote_addr zone=adminer:10m rate=100r/s;
-limit_req_zone $binary_remote_addr zone=phpmyadmin:10m rate=100r/s;
+
+## php limit requests zone ##
+limit_req_zone $binary_remote_addr zone=php_second:10m rate=@LIMIT_REQUESTS_PHP_SECONDr/s;
+limit_req_zone $binary_remote_addr zone=php_minute:10m rate=@LIMIT_REQUESTS_PHP_MINUTEr/m;
+
+## wpsearch limit requests zone ##
+limit_req_zone $binary_remote_addr zone=wpsearch_second:10m rate=@LIMIT_REQUESTS_WPSEARCH_SECONDr/s;
+limit_req_zone $binary_remote_addr zone=wpsearch_minute:10m rate=@LIMIT_REQUESTS_WPSEARCH_MINUTEr/m;
+
+## wplogin limit requests zone ##
+limit_req_zone $binary_remote_addr zone=wplogin_second:10m rate=@LIMIT_REQUESTS_WPLOGIN_SECONDr/s;
+limit_req_zone $binary_remote_addr zone=wplogin_minute:10m rate=@LIMIT_REQUESTS_WPLOGIN_MINUTEr/m;
+
+## admin-ajax limit requests zone ##
+limit_req_zone $binary_remote_addr zone=admin_ajax_second:10m rate=5r/s;
+limit_req_zone $binary_remote_addr zone=admin_ajax_minute:10m rate=60r/m;
+
+## limit request status ##
 limit_req_status 444;
+
+## global limit connections zone ##
+limit_conn_zone $server_name zone=slickstack_server_connections:10m;
+limit_conn_zone $binary_remote_addr zone=slickstack_per_ip_connections:10m;
+limit_conn slickstack_server_connections @LIMIT_CONNECTIONS_SERVER;
+limit_conn slickstack_per_ip_connections @LIMIT_CONNECTIONS_PER_IP;
+
+## limit connection status ##
+limit_conn_status 503;
+
+####################################################################################################
+#### N. Nginx.conf: Logging Settings ###############################################################
+####################################################################################################
+
+## for better usability these log settings and file paths are hardcoded in SlickStack ##
+## despite claims that access_log can hurt scaling we have not seen any issues ##
+
+access_log /var/www/logs/nginx-access.log;
+error_log /var/www/logs/nginx-error.log error;
+log_not_found off;
+
+####################################################################################################
+#### O. Nginx.conf: Include Sub-Config Files + Server Blocks #######################################
+####################################################################################################
     
-####################################################################################################
-#### Nginx.conf: Indexing Settings #################################################################
-####################################################################################################
+## these Nginx submodules for SlickStack should be included at the end of nginx.conf ##
+## submodules under /etc/nginx/conf.d/ are not supported and will be ignored ##
 
-## for security and stability reasons we disable autoindexing and default to PHP indexes ##
-## this allows HTML pages to load properly but prioritizes PHP over HTML loading ##
+## includes ##
+include /var/www/sites/includes/cloudflare[.]conf;
+include /var/www/sites/includes/allowed-ips[.]conf;
+include /var/www/sites/includes/auth-origin[.]conf;
 
-autoindex off;
-index index.php index.html;
+## certs ##
+include /var/www/sites/includes/openssl[.]conf;
+include /var/www/sites/includes/letsencrypt[.]conf;
+include /var/www/sites/includes/thirdparty[.]conf;
 
-####################################################################################################
-#### Nginx.conf: Include Nginx Sub-Config Files + Server Blocks ####################################
-####################################################################################################
-    
-## here we include the conditional sub-config files and server blocks for SlickStack ##
-## these lines absolutely must appear at the very end of this nginx.conf file ##
-    
-## include sub-config ##
-include /etc/nginx/conf.d/*.conf;
-
-## include blocks ##
-include /var/www/sites/*;
+## server blocks ##
+include /var/www/sites/production[.]conf;
+include /var/www/sites/staging[.]conf;
+include /var/www/sites/development[.]conf;
 
 }
 
@@ -287,6 +357,7 @@ include /var/www/sites/*;
 ## Ref: https://librenepal.com/article/remove-specific-cookies-with-nginx/
 ## Ref: https://stackoverflow.com/questions/5285940/correct-way-to-delete-cookies-server-side
 
+## Ref: ChatGPT
 ## Ref: http://nginx.org/en/docs/http/ngx_http_core_module.html
 ## Ref: https://gist.github.com/muhammadghazali/6c2b8c80d5528e3118613746e0041263
 ## Ref: http://bitsandpieces.it/nginx-by-examples-the-basics
@@ -404,5 +475,32 @@ include /var/www/sites/*;
 ## Ref: https://kinsta.com/knowledgebase/specify-vary-accept-encoding-header/
 ## Ref: https://community.cloudflare.com/t/cloudflare-cdn-cache-to-support-http-vary-header/160802
 ## Ref: https://www.thedotproduct.org/posts/nginx-vary-header-handling.html
+## Ref: https://gist.github.com/corburn/9ad9d07535d59b478159
+## Ref: https://content-security-policy.com/frame-ancestors/
+## Ref: https://stackoverflow.com/questions/63989613/how-to-allow-all-frame-ancestors-with-csp-header
+## Ref: https://serverfault.com/questions/907051/why-is-nginx-fastcgi-cache-stale-response-slower-than-hit-response
+## Ref: https://speakerdeck.com/rungta/micro-caching-in-nginx-for-high-performance
+## Ref: https://10web.io/blog/wordpress-cache/
+## Ref: https://kb.levine.org/homelab/applications/nginx/how-to-use-nginx-for-in-memory-caching/
+## Ref: https://0xstubs.org/risks-of-nginx-fastcgi-buffering-or-how-itunes-can-mess-with-your-nextcloud-server/
+## Ref: https://forum.nginx.org/read.php?11,256135
+## Ref: https://github.com/littlebizzy/slickstack/issues/206
+## Ref: https://ma.ttias.be/nginx-add_header-not-working-on-404/
+## Ref: https://serverfault.com/questions/247296/nginx-what-is-does-the-nodelay-option-do-when-limiting-requests
+## Ref: https://serverfault.com/questions/976574/nginx-rate-limiting-using-multiple-rate-rules
+## Ref: https://serverfault.com/questions/815489/nginx-fastcgi-cache-valid-vs-fastcgi-cache-paths-inactive
+## Ref: https://serverfault.com/questions/911921/debugging-nginx-cache-misses-hitting-high-number-of-miss-despite-high-proxy-val
+## Ref: https://gridpane.com/kb/increasing-timeouts-on-gridpane-nginx-servers/
+## Ref: https://gadelkareem.com/2015/01/18/limiting-connections-requests-wordpress-nginx/
+## Ref: https://stackoverflow.com/questions/32851858/explain-limit-conn-zone-server-name-in-nginx
+## Ref: https://serverfault.com/questions/763401/cloudflare-nginx-with-limit-req-and-limit-conn
+## Ref: https://github.com/openresty/openresty/issues/278
+## Ref: https://www.ruby-forum.com/t/request-limit-calculation/242388
+## Ref: https://medium.com/statuscode/nginxs-new-worker-shutdown-timeout-directive-d60f9c1142f8
+## Ref: https://github.com/linuxserver/docker-swag/issues/280
+## Ref: https://stackoverflow.com/questions/38880922/set-fastcgi-cache-key-using-original-request-uri-without-args
+## Ref: https://serverfault.com/questions/545009/nginx-ignore-query-string-for-caching-certain-files
+## Ref: https://alexsmith.org/making-nginx-ignore-query-string-parameters/
+## Ref: https://community.easyengine.io/t/fastcgi-cache-bypass-when-testing-for-query-string/3999
 
 ## SS_EOF

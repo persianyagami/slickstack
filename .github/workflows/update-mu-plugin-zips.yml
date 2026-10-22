@@ -1,0 +1,154 @@
+name: Update MU Plugin ZIPs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-mu-plugin-zips
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update MU plugin ZIPs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          target_dir="modules/wordpress/mu-plugins"
+          work_dir="${RUNNER_TEMP}/mu-plugin-zips"
+
+          # Add approved plugin repos here, one owner/repo per line.
+          plugin_repos=(
+            littlebizzy/clear-caches
+            littlebizzy/disable-empty-trash
+            littlebizzy/disable-image-compression
+            littlebizzy/disable-xml-rpc
+            littlebizzy/force-https
+            littlebizzy/plugin-blacklist
+            littlebizzy/repoman
+            afragen/git-updater
+          )
+
+          rm -rf "${work_dir}"
+          mkdir -p "${work_dir}" "${target_dir}"
+
+          for plugin_repo in "${plugin_repos[@]}"; do
+            if [[ ! "${plugin_repo}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+              echo "Invalid plugin repo: ${plugin_repo}" >&2
+              exit 1
+            fi
+
+            plugin_org="${plugin_repo%%/*}"
+            plugin="${plugin_repo##*/}"
+            repo_url="https://github.com/${plugin_repo}.git"
+            latest_tag="$(git ls-remote --tags --refs "${repo_url}" \
+              | awk '{ print $2 }' \
+              | sed 's#refs/tags/##' \
+              | awk '{ normalized = $0; sub(/^v/, "", normalized); print normalized "\t" $0 }' \
+              | sort -k1,1V \
+              | tail -n 1 \
+              | cut -f2)"
+
+            if [[ -z "${latest_tag}" ]]; then
+              echo "No tags found for ${plugin_repo}" >&2
+              exit 1
+            fi
+
+            target_zip="${GITHUB_WORKSPACE}/${target_dir}/${plugin}.zip"
+            temp_zip="${target_zip}.tmp"
+            normalized_tag="${latest_tag#v}"
+
+            if [[ -f "${target_zip}" ]]; then
+              current_version="$(unzip -p "${target_zip}" "${plugin}/${plugin}.php" 2>/dev/null \
+                | awk '
+                    /^[[:space:]]*(\*[[:space:]]*)?Version:[[:space:]]*/ {
+                      version = $0
+                      sub(/^[[:space:]]*(\*[[:space:]]*)?Version:[[:space:]]*v?/, "", version)
+                      sub(/[[:space:]]*$/, "", version)
+                      print version
+                      exit
+                    }
+                  ' || true)"
+
+              echo "Current ${plugin}.zip version: ${current_version:-unknown}"
+              echo "Latest ${plugin} tag: ${latest_tag}"
+
+              if [[ "${current_version}" == "${normalized_tag}" ]]; then
+                echo "No version changes for ${plugin}.zip (${latest_tag})"
+                continue
+              fi
+            else
+              echo "Current ${plugin}.zip version: none"
+              echo "Latest ${plugin} tag: ${latest_tag}"
+            fi
+
+            echo "Updating ${plugin}.zip from ${plugin_repo}@${latest_tag}"
+
+            plugin_work_dir="${work_dir}/${plugin}"
+            archive_zip="${plugin_work_dir}/${plugin}-${latest_tag}.zip"
+            extract_dir="${plugin_work_dir}/extract"
+            package_dir="${plugin_work_dir}/package"
+
+            rm -rf "${plugin_work_dir}"
+            rm -f "${temp_zip}"
+            mkdir -p "${extract_dir}" "${package_dir}"
+
+            curl -fsSL \
+              -o "${archive_zip}" \
+              "https://github.com/${plugin_org}/${plugin}/archive/refs/tags/${latest_tag}.zip"
+
+            unzip -q "${archive_zip}" -d "${extract_dir}"
+
+            extracted_dir="$(find "${extract_dir}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+
+            if [[ -z "${extracted_dir}" || ! -d "${extracted_dir}" ]]; then
+              echo "Unable to find extracted directory for ${plugin}" >&2
+              exit 1
+            fi
+
+            mv "${extracted_dir}" "${package_dir}/${plugin}"
+
+            if [[ ! -f "${package_dir}/${plugin}/${plugin}.php" ]]; then
+              echo "Expected ${plugin}/${plugin}.php was not found" >&2
+              exit 1
+            fi
+
+            (
+              cd "${package_dir}"
+              zip -qr "${temp_zip}" "${plugin}"
+            )
+
+            echo "Verifying built ZIP contains ${plugin}/${plugin}.php"
+            if zipinfo -1 "${temp_zip}" | grep -Fxq "${plugin}/${plugin}.php"; then
+              mv "${temp_zip}" "${target_zip}"
+            else
+              echo "Built ZIP is missing ${plugin}/${plugin}.php" >&2
+              exit 1
+            fi
+          done
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- modules/wordpress/mu-plugins/*.zip; then
+            echo "No MU plugin ZIP changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add modules/wordpress/mu-plugins/*.zip
+          git commit -m "Update MU plugin ZIPs"
+          git push

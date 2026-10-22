@@ -1,7 +1,7 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/modules/nginx/sites/production.txt ######################
+#### mirror: littlebizzy/slickstack/blob/master/modules/nginx/sites/production.txt #################
 #### path: n/a (boilerplate) #######################################################################
 #### destination: /var/www/sites/production (after install) ########################################
 #### purpose: Nginx server block boilerplate optimized for SlickStack production sites #############
@@ -20,89 +20,226 @@
 ## this is a brief summary of the different code snippets you will find in this script ##
 ## each section should be commented so you understand what is being accomplished ##
 
-## A. Catch-All Redirect To Canonical Domain
-## B. Canonical Domain (Single Website)
-## C. Well-Known (Domain Verification)
-## D. Redirect Any AMP Requests
-## E. Noindex Thin Content (Regex)
-## E. Noindex Certain File Types
-## F. FastCGI Cache Settings
-## G. PHP-FPM Routing
-## H. WP-Login (Rate Limiting)
-## I. Adminer Settings
-## J. Redirect Staging/Dev Subdirectories
-## K. Static Resource Expiration
-## L. Browser Rendering Settings
-## M. Favicon Settings
-## N. Robots.txt Settings
-## O. Ads.txt Settings
-## P. Git Configuration
-## Q. Deny Access To Unsafe WordPress Files
-## R. Deny Access To Unsafe SlickStack Files
+## A. Port 80 Server (Certbot Only + Redirect All Others)
+## B. Catch-All Default Server
+## C. Port 443 Server (Canonical)
+## D. Error Pages
+## E. Well-Known (Domain Verification)
+## F. Redirect Any AMP Requests
+## G. Cleanup Junk Query Strings
+## H. Redirect Junk URLs
+
+## A. Noindex Thin Content (Regex)
+## A. Noindex Certain File Types
+## A. FastCGI Cache Settings
+
+## X. XML Sitemaps
+## X. RSS Feeds
+## X. PHP-FPM Routing
+## X. WP-Login (Rate Limiting)
+## X. Admin-Ajax (Rate Limiting)
+
+## M. Adminer Settings
+## N. Redirect Staging/Dev Subdirectories
+## O. Static Resource Expiration
+## P. Browser Rendering Settings
+## Q. Favicon Settings
+## R. Robots.txt & Ads.txt Settings
+## S. Git Configuration
+## T. Deny Access To Unsafe WordPress Files
+## U. Deny Access To Unsafe SlickStack Files
 
 ####################################################################################################
-#### A. Server Block (Production): Catch-All Redirect To Canonical Domain ##########################
+#### A. Server Block (Production): Port 80 Server (Certbot Only + Redirect All Others) #############
 ####################################################################################################
 
 ## here we force redirect any non-canonical requests to the canonical server block below ##
 ## this vastly improves security, prevents IP snooping, SEO problems, and beyond ##
 
 server {
-	listen 80 default_server;
-	listen 443 ssl default_server;
-	listen [::]:80 default_server;
-	listen [::]:443 ssl default_server;
-	server_name _;
-	return 301 https://@SITE_DOMAIN$request_uri;
+    listen 80;
+    listen [::]:80;
+    server_name @SITE_DOMAIN_INCLUDING_WWW @SITE_DOMAIN_EXCLUDING_WWW;
+
+    location /.well-known/acme-challenge/ {
+        allow all;
+        auth_basic off;
+        default_type "text/plain";
+        try_files $uri =404;
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://@SITE_FULL_DOMAIN$request_uri;
+    }
 }
 
 ####################################################################################################
-#### B. Server Block (Production): Canonical Domain (Single Website) ###############################
+#### B. Server Block (Production): Catch-All Default Server ########################################
+####################################################################################################
+
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    listen [::]:80 default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+    return 301 https://@SITE_FULL_DOMAIN$request_uri;
+}
+
+####################################################################################################
+#### C. Server Block (Production): Port 443 Server (Canonical) #####################################
 ####################################################################################################
 
 ## CloudFlare ignores HTTP/2 from origin server but we enable in case of Lets Encrypt ##
 ## because SlickStack is HTTPS-only the canonical block is port 443 (SSL) only ##
 
 server {
-	listen 443 ssl http2;
-	listen [::]:443 ssl http2;
-	server_name @SITE_DOMAIN;
-	root /var/www/html;
-	
-	## redirect any requests that do not match server blocks ##
-	if ($http_host !~ "@SITE_DOMAIN|staging.@SITE_DOMAIN_EXCLUDING_WWW|dev.@SITE_DOMAIN_EXCLUDING_WWW") {
-	return 301        https://@SITE_DOMAIN$request_uri;
-	}
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name @SITE_FULL_DOMAIN;
+    root /var/www/html;
+
+    ## enforce global request rate limiting ##
+    limit_req zone=slickstack_server_second burst=@LIMIT_REQUESTS_SERVER_SECOND_BURST nodelay;
+    limit_req zone=slickstack_server_minute burst=@LIMIT_REQUESTS_SERVER_MINUTE_BURST nodelay;
+
+####################################################################################################
+#### C1. Server Block (Production): Authenticated Origin Access ####################################
+####################################################################################################
+
+## this file is automatically installed if Cloudflare auth origin is enabled in ss-config ##
+## it will block any requests that do not provide the Cloudflare client cert ##
+
+include /var/www/sites/includes/origin-gate[.]conf;
+
+####################################################################################################
+#### D. Server Block (Production): Error Pages #####################################################
+####################################################################################################
+
+    ## custom 404 error page
+    error_page 404 /error_404.html;
+    location = /error_404.html {
+        root /var/www/sites/error_pages;
+        internal;
+    }
+
+    ## serve custom 50x errors but exclude 503 ##
+    error_page 500 502 504 /error_50x.html;
+
+    ## custom error pages for 50x errors besides 503 ##
+    location = /error_50x.html {
+        root /var/www/sites/error_pages;
+        internal;
+    }
 	
 ####################################################################################################
-#### C. Server Block (Production): Well-Known (Domain Verification) ################################
+#### E. Server Block (Production): Well-Known (Domain Verification) ################################
 ####################################################################################################
 
 ## the well-known hidden directory is becoming more important for domain verification ##
 ## we implement an abundance of rules to improve functionality and stability ##
 
-## well-known ##
-location ^~ /.well-known/ {
-	allow all;
-	auth_basic off;
-	default_type "text/plain";
-	try_files $uri =404;
-}
+    location /.well-known/acme-challenge/ {
+        allow all;
+        auth_basic off;
+        default_type "text/plain";
+        try_files $uri =404;
+        root /var/www/html;
+    }
     
 ####################################################################################################
-#### D. Server Block (Production): Redirect Any AMP Requests #######################################
+#### F. Server Block (Production): Redirect Any AMP Requests #######################################
 ####################################################################################################
 
 ## this powerful snippet will redirect all the messy URLs created by AMP software ##
 ## SlickStack does not support AMP for both stability and political reasons ##
 
-## redirect /amp queries ##
-rewrite ^(.*/)amp(.*)$ $1 permanent;
-	
-## redirect ?amp queries ##
-if ($query_string ~ "^amp(.*)$") {
-	rewrite ^(.*)$ $uri? permanent;
-}
+    ## redirect /amp in URLs
+    rewrite ^(.*/)amp(.*)$ $1 permanent;
+
+    ## redirect ?amp query strings
+    if ($query_string ~ "^amp(.*)$") {
+        rewrite ^(.*)$ $uri? permanent;
+    }
+
+####################################################################################################
+#### X. Server Block (Production): 410 Any URL Requests With White Space ###########################
+####################################################################################################
+
+## by default Nginx should return 400 for requests with spaces but bots often send %20 ##
+## so here we return 410 only when spaces appear before the query string starts ##
+
+	if ($request_uri ~ "^[^?]*( |%20)") {
+		return 410;
+	}
+
+####################################################################################################
+#### X. Server Block (Production): Block Invalid PayPal WC-AJAX Requests ###########################
+####################################################################################################
+
+    ## block direct non-POST access to Woo PayPal approve-subscription wc-ajax endpoint ##
+	set $block_ppc_approve_subscription 0;
+
+	if ($arg_wc-ajax = "ppc-approve-subscription") {
+		set $block_ppc_approve_subscription 1;
+	}
+
+	if ($request_method = POST) {
+		set $block_ppc_approve_subscription 0;
+	}
+
+	if ($block_ppc_approve_subscription = 1) {
+		return 403;
+	}
+
+####################################################################################################
+#### G. Server Block (Production): Cleanup Junk Query Strings ######################################
+####################################################################################################
+
+## redirect unwanted query strings like attachment_id, format, and lightbox for cleaner URLs ##
+## and apply noindex to search queries to prevent SEO issues and duplicate content ##
+
+    ## redirect attachment_id queries
+    if ($query_string ~ "^attachment_id(.*)$") {
+        rewrite ^(.*)$ $uri? permanent;
+    }
+
+    ## redirect format queries
+    if ($query_string ~ "^format(.*)$") {
+        rewrite ^(.*)$ $uri? permanent;
+    }
+
+    ## redirect lightbox queries
+    if ($query_string ~ "^lightbox(.*)$") {
+        rewrite ^(.*)$ $uri? permanent;
+    }
+
+    ## noindex for search queries
+    if ($query_string ~ "^s=(.*)$") {
+        set $robots "noindex, nofollow, nosnippet, noarchive";
+    }
+
+    ## block wordpress comment reply query enumeration attacks ##
+    ## prevents bots from scanning replytocom ids and forcing php rendering ##
+
+    if ($arg_replytocom) {
+        return 301 $uri;
+    }
+
+####################################################################################################
+#### H. Server Block (Production): Redirect Junk URLs ##############################################
+####################################################################################################
+
+    #### redirect home to absolute URL to avoid conflicts with complex TLDs ####
+    rewrite ^/home/?$ https://@SITE_FULL_DOMAIN permanent;
+    rewrite ^/homepage/?$ https://@SITE_FULL_DOMAIN permanent;
+
+    #### redirect trackback URLs ####
+    rewrite ^(.*)/trackback/?$ $1 permanent;
+
+    #### redirect comment feeds to parent URL ####
+    rewrite ^(.*/)comments/?$ $1 permanent;
 
 ####################################################################################################
 #### Server Block (Production): Root Location Block ################################################
@@ -125,10 +262,10 @@ try_files $uri $uri/ /index.php?$args;
 #	return 301 $1;
 # }
 
-## 503 error if maintenance file found in web root ##
-if (-f /var/www/html/maintenance.html) {
-	return 503;
-}
+    ## serve maintenance page if the file exists ##
+    if (-f /var/www/html/maintenance.html) {
+        return 503;
+    }
 	
 ## force trailing slashes on urls (do not enable for bbPress/BuddyPress sites) ##
 # rewrite ^([^.]*[^/])$ $1/ permanent;
@@ -137,6 +274,21 @@ if (-f /var/www/html/maintenance.html) {
 if ( $query_string ~ "author=([0-9]*)" ) { 
 	return 403;
 }
+
+## rate limit wp search queries ## 
+## https://stackoverflow.com/questions/46178259/nginx-limit-requests-by-parameter-in-body-or-query
+# map $arg_ctl    $do_limit {
+#    "param1"    $binary_remote_addr;
+#    default     "";
+# }
+# limit_req_zone $do_limit zone=mylimit:10m rate=10r/s;
+# server {
+#    listen       8044;
+#    limit_req_log_level warn;
+#    location /route/{
+#       limit_req zone=mylimit burst=1000;
+#       proxy_pass https://the_Cool_server/;
+# }}
 
 }
 
@@ -155,18 +307,6 @@ location ~ ^(.*)/page/(.*)/$ {
 
 ## tags ##
 location ~ ^(.*)/tag/(.*)/$ {
-	try_files $uri $uri/ /index.php?$args;
-	set $robots "noindex, nofollow, nosnippet, noarchive";
-}
-
-## rss feeds ##
-location ~ ^(.*)/feed/$ {
-	try_files $uri $uri/ /index.php?$args;
-	set $robots "noindex, nofollow, nosnippet, noarchive";
-}
-
-## trackback ##
-location ~ ^(.*)/trackback/$ {
 	try_files $uri $uri/ /index.php?$args;
 	set $robots "noindex, nofollow, nosnippet, noarchive";
 }
@@ -196,25 +336,39 @@ location ~ ^(.*)/reply/$ {
 ## these powerful rules force-noindex non-WordPress file types for cleaner SEO results ##
 ## in this way malware or spam attacks or forgotten files are hidden from SERPs ##
 
-## allowed: html, xml (also css, js, php, etc)
+## allowed: htm, html, xml (also css, js, php, etc)
 ## Ref: https://support.google.com/webmasters/answer/35287?hl=en
 
-location ~* \.(asp|aspx|doc|docx|dwf|gpx|htm|hwp|jsp|kml|kmz|log|odp|ods|odt|pdf|ppt|pptx|ps|rtf|tex|text|txt|wap|wml|xls|xlsx)$ {
+location ~* \.(asp|aspx|doc|docx|dwf|gpx|hwp|jsp|kml|kmz|log|odp|ods|odt|pdf|ppt|pptx|ps|rtf|tex|text|txt|wap|wml|xls|xlsx)$ {
 	set $robots "noindex, nofollow, nosnippet, noarchive";
 }
 
 ####################################################################################################
-
+#### X. Server Block (Production): REST API Settings ###############################################
 ####################################################################################################
 
-    ## fixes potential 403 denied issues with WP-JSON ##
+## disabled until new zone added to nginx.conf
+# location ~ ^/wp-json/wp/v2/ {
+#    limit_req zone=api_minute burst=10 nodelay;
+#    limit_req_status 429;
+# }
+
+    ## handle wordpress wp-json requests ##
     location ~ ^/wp-json/ {
-        ## if permalinks not enabled or not loaded properly in the browser ##
-        rewrite ^/wp-json/(.*?)$ /?rest_route=/$1 last;
+        ## prevent caching for dynamic responses ##
+        add_header Cache-Control "no-cache, must-revalidate, max-age=0, no-store, private";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+
+        ## skip fastcgi cache for all wp-json requests ##
+        set $skip_cache 1;
+
+        ### ensure wordpress process requests ##
+        try_files $uri /index.php?$args;
     }
 	
 ####################################################################################################
-#### F. Server Block (Production): FastCGI Cache Settings ##########################################
+#### X. Server Block (Production): FastCGI Cache Settings ##########################################
 ####################################################################################################
 
 ## several common patterns are configured to skip FastCGI caching to avoid conflicts ##
@@ -232,6 +386,11 @@ location ~* \.(asp|aspx|doc|docx|dwf|gpx|htm|hwp|jsp|kml|kmz|log|odp|ods|odt|pdf
     if ($query_string != "") {
         set $skip_cache 1;
     }
+
+	## woocommerce ajax should always skip cache (just being more explicit for future proof)
+	if ($query_string ~* "wc-ajax") {
+    	set $skip_cache 1;
+	}
     
     ## ENGLISH - sensitive wordpress urls should always skip the cache
     if ($request_uri ~* "index.php|/account.*|/cart.*|/checkout.*|/contact.*|/dashboard.*|/login.*|/my-.*|/order.*|/profile.*|/register.*|/settings.*|/view.*|/wc-api.*|/wp-admin.*|wp-.*.php") {
@@ -247,14 +406,9 @@ location ~* \.(asp|aspx|doc|docx|dwf|gpx|htm|hwp|jsp|kml|kmz|log|odp|ods|odt|pdf
     if ($request_uri ~* "index.php|/konto.*|/koszyk.*|/zamowienie.*|/kontakt.*|/dashboard.*|/login.*|/moje-.*|/zamowienie.*|/profil.*|/register.*|/ustawienia.*|/view.*|/wc-api.*|/wp-admin.*|wp-.*.php") {
     	set $skip_cache 1;
     }
-
-    ## do not cache RSS feeds or sitemaps (special 5 minute cache rule or something would be better in the future) ##
-    if ($request_uri ~* "/feed/|sitemap(_index)?.xml") {
-        set $skip_cache 1;
-    }
     
     ## certain cookies (logged in users or recent commenters etc) should always skip the cache
-    if ($http_cookie ~* "wordpress_logged_in|wp-postpass|woocommerce_items_in_cart|woocommerce_cart_hash|comment_author") {
+    if ($http_cookie ~* "comment_author|store_notice.*|woocommerce_cart_hash|woocommerce_items_in_cart|wordpress_logged_in|wordpress_sec|wp-postpass") {
         set $skip_cache 1;
     }
     
@@ -274,6 +428,42 @@ location ~* \.(asp|aspx|doc|docx|dwf|gpx|htm|hwp|jsp|kml|kmz|log|odp|ods|odt|pdf
     # }
 
 ####################################################################################################
+#### X. Server Block (Production): XML Sitemaps ####################################################
+####################################################################################################
+
+## xml sitemaps ##
+location ~* sitemap.*\.xml$ {
+    fastcgi_cache_valid 200 5m;
+    set $skip_cache 0;
+    try_files $uri /index.php?$args;
+}
+
+####################################################################################################
+#### X. Server Block (Production): RSS Feeds #######################################################
+####################################################################################################
+
+## preserve main wordpress feed ##
+location ~* ^/feed/?$ {
+    fastcgi_cache_valid 200 5m;
+    set $skip_cache 0;
+    set $robots "noindex, nofollow, nosnippet, noarchive";
+    try_files $uri /index.php?$args;
+}
+
+## preserve bbpress topics feed ##
+location ~* ^/topics/feed/?$ {
+    fastcgi_cache_valid 200 5m;
+    set $skip_cache 0;
+    set $robots "noindex, nofollow, nosnippet, noarchive";
+    try_files $uri /index.php?$args;
+}
+
+## redirect all other feeds ##
+location ~* ^/(?!topics/feed/?$|feed/?$).+/(feed|atom|rss2)/?$ {
+    rewrite ^/(.*)/(feed|atom|rss2)/?$ /$1 permanent;
+}
+
+####################################################################################################
 #### G. Server Block (Production): PHP-FPM Routing #################################################
 ####################################################################################################
 
@@ -281,52 +471,97 @@ location ~* \.(asp|aspx|doc|docx|dwf|gpx|htm|hwp|jsp|kml|kmz|log|odp|ods|odt|pdf
 ## we also have to optimize cookies here too since working with WordPress ##
 
 location ~* \.php$ {
-set $rt_session "";
-if ($http_cookie ~* "wp_woocommerce_session_[^=]*=([^%]+)%7C") {
-	set $rt_session wp_woocommerce_session_$1;
-}
-if ($skip_cache = 0 ) {
-	more_clear_headers "Set-Cookie*";
-	set $rt_session "";
-}
-include /etc/nginx/fastcgi.conf;
-# try_files $uri =404;
-try_files $uri $uri/ /index.php?$args;
-fastcgi_split_path_info ^(.+\.php)(/.+)$;
-fastcgi_pass 127.0.0.1:9000;
-fastcgi_read_timeout 300;
-fastcgi_index index.php;
-fastcgi_cache WORDPRESS;
-fastcgi_cache_valid 200 301 404 @CACHEVALID;
-fastcgi_cache_bypass $skip_cache;
-fastcgi_no_cache $skip_cache;
 
-more_set_headers "X-Robots-Tag $robots";
-set $cachecontrol "nocache"; ## disable browser caching for dynamic pages
+	## allow only valid wordpress php entry points ##
+	if ($uri !~ ^/(index\.php|wp-login\.php|wp-comments-post\.php|wp-signup\.php|wp-activate\.php|wp-admin/.*\.php)$) {
+    	return 444;
+	}
 
-## set-cookie on PHP content ##
-set $setcookie "Path=/; HttpOnly; Secure";
+    ## rate limiting for php requests ##
+    limit_req zone=php_second burst=@LIMIT_REQUESTS_PHP_SECOND_BURST nodelay;
+    limit_req zone=php_minute burst=@LIMIT_REQUESTS_PHP_MINUTE_BURST nodelay;
+
+    ## initialize default session and secure cookie settings ##
+    set $ss_session "";
+    set $cachecontrol "nocache";
+    set $setcookie "Path=/; HttpOnly; Secure";
+
+    ## detect woocommerce session cookie and bypass cache ##
+    if ($http_cookie ~* "wp_woocommerce_session_[^=]*=([^%]+)%7C") {
+        set $skip_cache 1;
+        set $ss_session wp_woocommerce_session_$1;
+    }
+
+    ## clear cookies if cache is not bypassed ##
+    if ($skip_cache = 0) {
+        more_clear_headers "Set-Cookie*";
+    }
+
+    ## fastcgi caching directives ##
+    fastcgi_cache WORDPRESS;
+    fastcgi_cache_valid 200 301 404 @CACHEVALID;
+    fastcgi_cache_bypass $skip_cache;
+    fastcgi_no_cache $skip_cache;
+
+    ## ensure proper request fallback for wordpress ##
+    try_files $uri /index.php?$args;
+
+    ## fastcgi processing configurations ##
+    include /etc/nginx/fastcgi.conf;
+    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    fastcgi_pass 127.0.0.1:9000;
+    fastcgi_read_timeout @NGINX_FASTCGI_READ_TIMEOUT;
+    fastcgi_index index.php;
+
+    ## set robots meta headers ##
+    more_set_headers "X-Robots-Tag $robots";
 }
 	
 ####################################################################################################
-#### H. Server Block (Production): Rate Limit WP-Login.php #########################################
+#### X. Server Block (Production): Rate Limit WP-Login.php #########################################
 ####################################################################################################
 
 ## because of goofy Nginx we must reinclude all PHP directives here as they exist above ##
 ## next we enable rate-limiting to prevent automated brute force hack attempts ##
 
 location = /wp-login.php {
-	include /etc/nginx/fastcgi.conf;
-	try_files $uri =404;
-	fastcgi_split_path_info ^(.+\.php)(/.+)$;
-	fastcgi_pass 127.0.0.1:9000;
-	fastcgi_read_timeout 300;
-	fastcgi_index index.php;
-	fastcgi_cache WORDPRESS;
-	fastcgi_cache_valid 200 301 404 @CACHEVALID;
-	fastcgi_cache_bypass $skip_cache;
-	fastcgi_no_cache $skip_cache;
-	limit_req zone=wplogin burst=1 nodelay;
+
+    ## protect against brute force attacks with rate limiting ##
+    limit_req zone=wplogin_second burst=@LIMIT_REQUESTS_WPLOGIN_SECOND_BURST nodelay;
+    limit_req zone=wplogin_minute burst=@LIMIT_REQUESTS_WPLOGIN_MINUTE_BURST nodelay;
+
+    ## fastcgi configurations ##
+    include /etc/nginx/fastcgi.conf;
+    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    fastcgi_pass 127.0.0.1:9000;
+    fastcgi_read_timeout @NGINX_FASTCGI_READ_TIMEOUT;
+    fastcgi_index index.php;
+
+    ## bypass caching for wp-login.php ##
+    fastcgi_cache_bypass $skip_cache;
+    fastcgi_no_cache $skip_cache;
+}
+
+####################################################################################################
+#### X. Server Block (Production): Rate Limit admin-ajax.php #######################################
+####################################################################################################
+
+location = /wp-admin/admin-ajax.php {
+
+    ## protect against admin-ajax abuse ##
+    limit_req zone=admin_ajax_second burst=10 nodelay;
+    limit_req zone=admin_ajax_minute burst=30 nodelay;
+
+    ## fastcgi configurations ##
+    include /etc/nginx/fastcgi.conf;
+    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    fastcgi_pass 127.0.0.1:9000;
+    fastcgi_read_timeout @NGINX_FASTCGI_READ_TIMEOUT;
+    fastcgi_index index.php;
+
+    ## bypass caching ##
+    fastcgi_cache_bypass $skip_cache;
+    fastcgi_no_cache $skip_cache;
 }
 
 ####################################################################################################
@@ -336,17 +571,7 @@ location = /wp-login.php {
 ## this snippet allows you to load Adminer via the frontend (requires PHP-FPM routing) ##
 ## we include some basic rate limiting rules to avoid attacks on these URLs ##
 
-location ^~ /adminer {
-	limit_req zone=adminer burst=1 nodelay;
-	alias /var/www/meta/adminer.php;
-	include /etc/nginx/fastcgi.conf;
-	try_files $uri =404;
-	fastcgi_split_path_info ^(.+\.php)(/.+)$;
-	fastcgi_pass 127.0.0.1:9000;
-	fastcgi_read_timeout 300;
-	fastcgi_index index.php;
-	fastcgi_cache off;
-}
+include /var/www/sites/includes/adminer[.]conf;
 	
 ####################################################################################################
 #### J. Server Block (Production): Staging/Dev Subdirectories ######################################
@@ -356,11 +581,11 @@ location ^~ /adminer {
 ## therefore any staging WordPress plugins cannot use these reserved paths ##
 
 location /staging/ {
-	return 301 https://@SITE_DOMAIN;
+	return 301 https://@SITE_FULL_DOMAIN;
 }
 
 location /dev/ {
-	return 301 https://@SITE_DOMAIN;
+	return 301 https://@SITE_FULL_DOMAIN;
 }
 
 ####################################################################################################
@@ -370,7 +595,7 @@ location /dev/ {
 ## because some websites mix WordPress with other static .html files we include this ##
 ## in case .html files are missing they will be redirected to WordPress here ##
 
-location ~* \.(html)$ {
+location ~* \.(htm|html)$ {
 	try_files $uri $uri/ /index.php?$args;
 	set $cachecontrol "public, max-age=691200"; ## 1 week
 	set $setcookie "";
@@ -383,7 +608,7 @@ location ~* \.(html)$ {
 ## this snippet controls expiration headers and any other settings for static assets ##
 ## keep in mind that Cloudflare or CDNs will likely overwrite these settings ##
 
-location ~* \.(atom|bmp|bz2|css|doc|docx|eot|gif|gz|ico|jpeg|jpg|js|mid|midi|mp4|ogg|ogv|otf|png|ppt|rar|rss|rtf|svg|svgz|tar|tgz|ttc|ttf|wav|webp|woff|woff2|xls|zip)$ {
+location ~* \.(atom|bmp|bz2|doc|docx|gif|gz|ico|jpeg|jpg|mid|midi|mp4|ogg|ogv|png|ppt|rar|rss|rtf|svgz|tar|tgz|wav|webp|xls|zip)$ {
 	set $cachecontrol "public, max-age=15778476"; ## 6 months
 	set $setcookie "";
 }
@@ -395,9 +620,29 @@ location ~* \.(atom|bmp|bz2|css|doc|docx|eot|gif|gz|ico|jpeg|jpg|js|mid|midi|mp4
 ## avoids render security errors for cross-origin in certain browsers e.g. Firefox/IE ##
 ## this pretty much tells browsers to stop being paranoid and load your fonts ##
 
+####### AVOIDS MATCHING MULTIPLE LOCATION BLOCKS ###########
+
 location ~* \.(css|eot|js|otf|svg|ttc|ttf|woff|woff2)$ {
+	set $cachecontrol "public, max-age=15778476"; ## 6 months
+	set $setcookie "";
 	add_header Access-Control-Allow-Origin "*";
+	# try_files $uri @redirect;
 }
+
+## stupid idea lets disable for now ##
+# location @redirect {
+#	return 302 https://@SITE_FULL_DOMAIN;
+# }
+
+####################################################################################################
+#### X. Server Block (Production): 410 Spam URL Heuristics #########################################
+####################################################################################################
+
+## return 410 when url ends with a domain-like segment like /about/viagra-spam.com
+
+# location ~* ^/(?:.+/)?(?:[a-z][a-z0-9-]{1,}\.)+[a-z]{2,63}/?$ {
+# 	return 410;
+# }
 
 ####################################################################################################
 #### M. Server Block (Production): Favicon Files ###################################################
@@ -475,6 +720,11 @@ location = /ads.txt {
     location = /xmlrpc.php {
 	deny all;
     }
+
+	## deny access because wp-cron.php is triggered via crontab ##
+    location /wp-cron.php {
+		deny all;
+    }
     
     ## wp-mail ##
     location = /wp-mail.php {
@@ -505,22 +755,32 @@ location = /ads.txt {
 
     ## object-cache.php ##
     location = /wp-content/object-cache.php {
-	deny all;
+		deny all;
     }
     
     ## blacklist.txt ##
     location = /wp-content/blacklist.txt {
-	deny all;
+		deny all;
     }
     
-    ## functions.php ##
+    ## functions.php (old) ##
     location = /wp-content/functions.php {
-	deny all;
+		deny all;
     }
-    
+	
+	## custom-functions.php (new) ##
+    location = /wp-content/custom-functions.php {
+		deny all;
+    }
+
+	## 000-common.php ##
+    location = /wp-content/mu-plugins/000-common.php {
+		deny all;
+    }
+
     ## xxx-common.php ##
     location = /wp-content/mu-plugins/xxx-common.php {
-	deny all;
+		deny all;
     }
     
 ####################################################################################################
@@ -550,18 +810,13 @@ location = /ads.txt {
 #### Server Block (Production): Maintenance File (Named Location) ##################################
 ####################################################################################################
 
-  ## activate named @maintenance location for any 503 errors ##
-  error_page 503 @maintenance;
+    ## 503 error page ##
+    error_page 503 @maintenance;
   
-  ## location rules for maintenance.html ##
-  location @maintenance {
-       rewrite ^(.*)$ /maintenance.html break;
-  }
-  
-  
-  
-
-
+    ## named location for maintenance page ##
+    location @maintenance {
+        rewrite ^(.*)$ /maintenance.html break;
+    }
 
 ####################################################################################################
 #### Server Block (Production): #######################
@@ -574,6 +829,7 @@ location = /ads.txt {
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
+## Ref: ChatGPT
 ## Ref: https://nginx.viraptor.info
 ## Ref: https://unix.stackexchange.com/questions/91774/performance-of-unix-sockets-vs-tcp-ports
 ## Ref: https://stackoverflow.com/questions/257433/postgresql-unix-domain-sockets-vs-tcp-sockets/257479
@@ -668,5 +924,25 @@ location = /ads.txt {
 ## Ref: https://stackoverflow.com/questions/65586715/nginx-issues-when-matching-partial-location
 ## Ref: https://serverfault.com/questions/950857/use-include-in-nginx-server-block-but-where-to-save
 ## Ref: https://ashton.codes/set-cache-control-max-age-1-year/
+## Ref: https://serverfault.com/questions/901761/nginx-redirect-to-a-php-file-with-try-files-if-required-php-file-not-found
+## Ref: https://serverfault.com/questions/411941/nginx-redirect-non-existant-files-on-https-to-http-with-try-files
+## Ref: https://www.digitalocean.com/community/tutorials/how-to-configure-nginx-to-use-custom-error-pages-on-ubuntu-22-04
+## Ref: https://stackoverflow.com/questions/50979541/direct-access-to-wp-cron-php
+## Ref: https://serverfault.com/questions/1017545/unable-to-use-letsencrypt-certbot-when-http-to-https-redirect-is-setup
+## Ref: https://serverfault.com/questions/1061262/nginx-lets-encrypt-https-redirect
+## Ref: https://medium.com/@hugodelatte/configuring-an-https-server-with-nginx-and-certbot-d3abe6121af7
+## Ref: https://www.oreilly.com/library/view/nginx-cookbook/9781492078470/ch01.html
+## Ref: https://woocommerce.com/document/woocommerce-cookies/
+## Ref: https://slickstack.io/forum/topic/which-woocommerce-cookies-should-skip-the-nginx-cache
+## Ref: https://github.com/littlebizzy/slickstack/issues/204
+## Ref: https://stackoverflow.com/questions/22127202/nginx-to-allow-only-post-requests-for-certain-urls
+## Ref: https://martech.zone/wordpress-eliminate-replytocom-comment-spam-and-search-console-issues-using-htaccess/
+## Ref: https://odd.blog/2023/02/27/redirecting-replytocom-so-bots-go-home/
+## Ref: https://slickstack.io/forum/topic/issue-with-utm-parameters
+## Ref: https://github.com/littlebizzy/slickstack/issues/226
+
+## Ref: https://stackoverflow.com/questions/72516213/how-to-rewrite-wordpress-default-search-url-slug-to-clean-search-nginx
+## ORGANIZE BLOCKS BETTER PER: ##
+## Ref: https://stackoverflow.com/questions/38911354/nginx-php-file-extension-does-not-work-with-try-files
 
 ## SS_EOF

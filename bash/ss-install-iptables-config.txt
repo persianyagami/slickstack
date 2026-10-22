@@ -1,0 +1,117 @@
+#!/bin/bash
+
+####################################################################################################
+#### author: SlickStack ############################################################################
+#### link: https://slickstack.io ###################################################################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-install-iptables-config.txt ################
+#### path: /var/www/ss-install-iptables-config #####################################################
+#### destination: n/a (not a boilerplate) ##########################################################
+#### purpose: Reinstalls the iptables config (rules) for SlickStack servers (idempotent) ###########
+#### module version: Iptables 1.8.x ################################################################
+#### sourced by: ss-install ########################################################################
+#### bash aliases: ss install iptables config ######################################################
+####################################################################################################
+
+## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
+## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Install-Iptables-Config) ################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Install Iptables Config
+## E. Reset Permissions (Iptables Config)
+
+####################################################################################################
+#### A. SS-Install-Iptables-Config: Source SS-Config + SS-Functions ################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
+
+## source ss-config ##
+source /var/www/ss-config
+
+## source ss-functions ##
+source /var/www/ss-functions
+
+## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
+
+####################################################################################################
+#### B. SS-Install-Iptables-Config: Touch Timestamp File ###########################################
+####################################################################################################
+
+## this is a dummy timestamp file that will remember the last time this script was run ##
+## it can be useful for developer reference and is sometimes used by SlickStack ##
+
+ss_touch "${TIMESTAMP_SS_INSTALL_IPTABLES_CONFIG}"
+
+####################################################################################################
+#### C. SS-Install-Iptables-Config: Message (Begin Script) #########################################
+####################################################################################################
+
+## this is a simple message that announces to the shell the purpose of this bash script ##
+## it will only be seen by sudo users who manually run this script in the shell ##
+
+ss_echo "${COLOR_INFO}Running ss-install-iptables-config... ${COLOR_RESET}"
+
+####################################################################################################
+#### D. SS-Install-Iptables-Config: Install Iptables Config ########################################
+####################################################################################################
+
+## retrieve iptables rules ##
+ss_wget "${TMP_RULES_V4}" "${GITHUB_RULES_V4}"
+ss_wget "${TMP_RULES_V6}" "${GITHUB_RULES_V6}"
+
+## verify downloads before applying ##
+if [[ -s "${TMP_RULES_V4}" && -s "${TMP_RULES_V6}" ]]; then
+    if ss_grep "SS_EOF" "${TMP_RULES_V4}" && ss_grep "SS_EOF" "${TMP_RULES_V6}"; then
+        if iptables-restore -t < "${TMP_RULES_V4}" && ip6tables-restore -t < "${TMP_RULES_V6}"; then
+
+            ss_mv "${TMP_RULES_V4}" /etc/iptables/rules.v4
+            ss_mv "${TMP_RULES_V6}" /etc/iptables/rules.v6
+
+            ## ensure proper permissions ##
+            chmod 600 /etc/iptables/rules.v4
+            chmod 600 /etc/iptables/rules.v6
+
+            ## apply rules immediately ##
+            iptables-restore < /etc/iptables/rules.v4
+            ip6tables-restore < /etc/iptables/rules.v6
+
+            ## enable and restart netfilter-persistent, suppressing only specific messages ##
+            systemctl enable netfilter-persistent 2>&1 | grep -viE "(synchronizing|executing)"
+            systemctl restart netfilter-persistent 2>&1 | grep -viE "(synchronizing|executing)"
+
+            ## usually not required ##
+            # systemctl restart networking
+
+        else
+            ss_echo "Invalid iptables rules detected. Configuration not applied."
+        fi
+    else
+        ss_echo "Failed to verify iptables rules. Configuration not applied."
+    fi
+else
+    ss_echo "Failed to download iptables rules. Configuration not applied."
+fi
+
+####################################################################################################
+#### E. SS-Install-Iptables-Config: Reset Permissions (Iptables Config) ############################
+####################################################################################################
+
+source "${PATH_SS_PERMS_IPTABLES_CONFIG}"
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+####################################################################################################
+
+## Ref: ChatGPT
+
+## SS_EOF

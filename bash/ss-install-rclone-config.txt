@@ -40,7 +40,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_INSTALL_RCLONE_CONFIG}"
 
 ####################################################################################################
@@ -48,10 +47,15 @@ ss_touch "${TIMESTAMP_SS_INSTALL_RCLONE_CONFIG}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-install-rclone-config... ${COLOR_RESET}"
+
+####################################################################################################
+#### X. Change To Default Directory #####################################
+####################################################################################################
+
+ss_cd_default
 
 ####################################################################################################
 #### SS-Install-Rclond-Config: #########################
@@ -61,29 +65,28 @@ ss_echo "${COLOR_INFO}Running ss-install-rclone-config... ${COLOR_RESET}"
 ## several common PHP settings are hardcoded to improve LEMP server stability ##
 
 ## download latest versions ##
-ss_wget "${TMP_RCLONE_CONF}" "${MIRROR_RCLONE_CONF}"
+ss_wget "${TMP_RCLONE_CONF}" "${GITHUB_RCLONE_CONF}"
 
-sed -i "s/@RCLONE_TYPE/${RCLONE_TYPE}/g" "$TMP_RCLONE_CONF"
-sed -i "s/@RCLONE_CLIENT_ID/${RCLONE_CLIENT_ID}/g" "$TMP_RCLONE_CONF"
-sed -i "s/@RCLONE_CLIENT_SECRET/${RCLONE_CLIENT_SECRET}/g" "$TMP_RCLONE_CONF"
-sed -i "s/@RCLONE_USER/${RCLONE_USER}/g" "$TMP_RCLONE_CONF"
-sed -i "s/@RCLONE_PASSWORD/${RCLONE_PASSWORD}/g" "$TMP_RCLONE_CONF"
-sed -i "s/@RCLONE_TOKEN/${RCLONE_TOKEN}/g" "$TMP_RCLONE_CONF"
+ss_sed "s/@RCLONE_TYPE/${RCLONE_TYPE}/g" "$TMP_RCLONE_CONF"
+ss_sed "s/@RCLONE_CLIENT_ID/${RCLONE_CLIENT_ID}/g" "$TMP_RCLONE_CONF"
+ss_sed "s/@RCLONE_CLIENT_SECRET/${RCLONE_CLIENT_SECRET}/g" "$TMP_RCLONE_CONF"
+ss_sed "s/@RCLONE_USER/${RCLONE_USER}/g" "$TMP_RCLONE_CONF"
+ss_sed "s/@RCLONE_PASSWORD/${RCLONE_PASSWORD}/g" "$TMP_RCLONE_CONF"
+ss_sed "s/@RCLONE_TOKEN/${RCLONE_TOKEN}/g" "$TMP_RCLONE_CONF"
 
 ## depends on chosen rclone service ##
 
 ## install the file ##
-cp "$TMP_RCLONE_CONF" "$PATH_RCLONE_CONF"
+ss_cp "${TMP_RCLONE_CONF}" "${PATH_RCLONE_CONF}"
 
 ####################################################################################################
 #### SS-Install-Rclone-Config: Reset Permissions (Rclone Config) ###################################
 ####################################################################################################
 
-## run ss-perms-rclone-config ##
-source "$PATH_SS_PERMS_RCLONE_CONFIG"
+source "${PATH_SS_PERMS_RCLONE_CONFIG}"
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##

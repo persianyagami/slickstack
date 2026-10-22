@@ -3,7 +3,7 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-install-mysql-config.txt ########################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-install-mysql-config.txt ###################
 #### path: /var/www/ss-install-mysql-config ########################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Reinstalls MySQL module config files based on ss-config (idempotent) #################
@@ -15,6 +15,28 @@
 ## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
 ## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
 
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Install-MySQL-Config) ###################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Install My.conf
+## E. Remove Version-Specific Settings
+## F. Restart Modules (MySQL)
+## G. Reset Permissions (MySQL Config)
+
+####################################################################################################
+#### A. SS-Install-MySQL-Config: Source SS-Config + SS-Functions ###################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
+
 ## source ss-config ##
 source /var/www/ss-config
 
@@ -24,42 +46,29 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Install-MySQL-Config) ###################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-
-####################################################################################################
-#### A. SS-Install-MySQL-Config: Touch Timestamp File ##############################################
+#### B. SS-Install-MySQL-Config: Touch Timestamp File ##############################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_INSTALL_MYSQL_CONFIG}"
 
 ####################################################################################################
-#### B. SS-Install-MySQL-Config: Message (Begin Script) ############################################
+#### C. SS-Install-MySQL-Config: Message (Begin Script) ############################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-install-mysql-config... ${COLOR_RESET}"
 
 
-
 ## delete 
-if [[ "$SS_DATABASE_REMOTE" != "true" ]]; then
+if [[ "${DB_REMOTE}" != "true" ]]; then
 
 ####################################################################################################
-#### SS-Install-MySQL-Config: Install MySQL Config #################################################
+#### D. SS-Install-MySQL-Config: Install My.conf ###################################################
 ####################################################################################################
 
 ## here we overwrite the default my.cnf with an optimized version (sub-config disabled) ##
@@ -71,66 +80,70 @@ sleep 15s
 # killall mysql* > /dev/null 2>&1
 # sleep 15s
 
-if [[ "${UBUNTU_VERSION}" == "22.04" ]]; then 
-    ss_wget "${TMP_MY_CNF}" "${MIRROR_MY_CNF_80}"
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "24.04" ]]; then 
+    ss_wget "${TMP_MY_CNF}" "${GITHUB_MY_CNF_80}"
 fi
 
-if [[ "${UBUNTU_VERSION}" == "20.04" ]]; then 
-    ss_wget "${TMP_MY_CNF}" "${MIRROR_MY_CNF_80}"
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "22.04" ]]; then 
+    ss_wget "${TMP_MY_CNF}" "${GITHUB_MY_CNF_80}"
 fi
 
-if [[ "${UBUNTU_VERSION}" == "18.04" ]]; then 
-    ss_wget "${TMP_MY_CNF}" "${MIRROR_MY_CNF_57}"
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "20.04" ]]; then 
+    ss_wget "${TMP_MY_CNF}" "${GITHUB_MY_CNF_80}"
+fi
+
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "18.04" ]]; then 
+    ss_wget "${TMP_MY_CNF}" "${GITHUB_MY_CNF_57}"
 fi
 
 #### MySQL Settings ####
 ## SQL mode ##
 if [[ -z "${SQL_MODE}" ]]; then 
-    sed -i "s/@SQL_MODE/STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_MODE/STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@SQL_MODE/${SQL_MODE}/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_MODE/${SQL_MODE}/g" "${TMP_MY_CNF}"
 fi
 
 ## max allowed packet ##
 if [[ -z "$SQL_MAX_ALLOWED_PACKET" ]]; then 
-    sed -i "s/@SQL_MAX_ALLOWED_PACKET/256M/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_MAX_ALLOWED_PACKET/256M/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@SQL_MAX_ALLOWED_PACKET/${SQL_MAX_ALLOWED_PACKET}/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_MAX_ALLOWED_PACKET/${SQL_MAX_ALLOWED_PACKET}/g" "${TMP_MY_CNF}"
 fi
 
 ## connect timeout ##
 if [[ -z "$SQL_CONNECT_TIMEOUT" ]]; then 
-    sed -i "s/@SQL_CONNECT_TIMEOUT/30/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_CONNECT_TIMEOUT/30/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@SQL_CONNECT_TIMEOUT/${SQL_CONNECT_TIMEOUT}/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_CONNECT_TIMEOUT/${SQL_CONNECT_TIMEOUT}/g" "${TMP_MY_CNF}"
 fi
 
 ## wait timeout ##
 if [[ -z "$SQL_WAIT_TIMEOUT" ]]; then 
-    sed -i "s/@SQL_WAIT_TIMEOUT/3600/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_WAIT_TIMEOUT/3600/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@SQL_WAIT_TIMEOUT/${SQL_WAIT_TIMEOUT}/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_WAIT_TIMEOUT/${SQL_WAIT_TIMEOUT}/g" "${TMP_MY_CNF}"
 fi
 
 ## interactive timeout ##
 if [[ -z "$SQL_INTERACTIVE_TIMEOUT" ]]; then 
-    sed -i "s/@SQL_INTERACTIVE_TIMEOUT/43200/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_INTERACTIVE_TIMEOUT/43200/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@SQL_INTERACTIVE_TIMEOUT/${SQL_INTERACTIVE_TIMEOUT}/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_INTERACTIVE_TIMEOUT/${SQL_INTERACTIVE_TIMEOUT}/g" "${TMP_MY_CNF}"
 fi
 
 ## net read timeout ##
 if [[ -z "$SQL_NET_READ_TIMEOUT" ]]; then 
-    sed -i "s/@SQL_NET_READ_TIMEOUT/30/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_NET_READ_TIMEOUT/30/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@SQL_NET_READ_TIMEOUT/${SQL_NET_READ_TIMEOUT}/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_NET_READ_TIMEOUT/${SQL_NET_READ_TIMEOUT}/g" "${TMP_MY_CNF}"
 fi
 
 ## net write timeout ##
 if [[ -z "$SQL_NET_WRITE_TIMEOUT" ]]; then 
-    sed -i "s/@SQL_NET_WRITE_TIMEOUT/60/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_NET_WRITE_TIMEOUT/60/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@SQL_NET_WRITE_TIMEOUT/${SQL_NET_WRITE_TIMEOUT}/g" "$TMP_MY_CNF"
+    ss_sed "s/@SQL_NET_WRITE_TIMEOUT/${SQL_NET_WRITE_TIMEOUT}/g" "${TMP_MY_CNF}"
 fi
 
 
@@ -138,74 +151,72 @@ fi
 PERCENT_RAM_MB=$(free -m | awk 'NR==2{printf "%d", $2*0.50 }')
 
 if [[ "$INNODB_BUFFER_POOL_SIZE" == "auto" ]]; then 
-    sed -i "s/@INNODB_BUFFER_POOL_SIZE/${PERCENT_RAM_MB}M/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_BUFFER_POOL_SIZE/${PERCENT_RAM_MB}M/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@INNODB_BUFFER_POOL_SIZE/${INNODB_BUFFER_POOL_SIZE}/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_BUFFER_POOL_SIZE/${INNODB_BUFFER_POOL_SIZE}/g" "${TMP_MY_CNF}"
 fi
 
 ## set InnoDB flush method ##
 if [[ -z "$INNODB_FLUSH_METHOD" ]]; then 
-    sed -i "s/@INNODB_FLUSH_METHOD/O_DIRECT/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_FLUSH_METHOD/O_DIRECT/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@INNODB_FLUSH_METHOD/${INNODB_FLUSH_METHOD}/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_FLUSH_METHOD/${INNODB_FLUSH_METHOD}/g" "${TMP_MY_CNF}"
 fi
 
 ## set InnoDB log file size ##
 if [[ -z "$INNODB_LOG_FILE_SIZE" ]]; then 
-    sed -i "s/@INNODB_LOG_FILE_SIZE/256M/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_LOG_FILE_SIZE/256M/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@INNODB_LOG_FILE_SIZE/${INNODB_LOG_FILE_SIZE}/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_LOG_FILE_SIZE/${INNODB_LOG_FILE_SIZE}/g" "${TMP_MY_CNF}"
 fi
 
 ## set InnoDB log files in group ##
 if [[ -z "$INNODB_LOG_FILES_IN_GROUP" ]]; then 
-    sed -i "s/@INNODB_LOG_FILES_IN_GROUP/1/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_LOG_FILES_IN_GROUP/1/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@INNODB_LOG_FILES_IN_GROUP/${INNODB_LOG_FILES_IN_GROUP}/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_LOG_FILES_IN_GROUP/${INNODB_LOG_FILES_IN_GROUP}/g" "${TMP_MY_CNF}"
 fi
 
 ## set InnoDB flush_log_at_trx_commit ##
 if [[ "$INNODB_FLUSH_LOG_AT_TRX_COMMIT" == "false" ]]; then
-    sed -i "s/@INNODB_FLUSH_LOG_AT_TRX_COMMIT/0/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_FLUSH_LOG_AT_TRX_COMMIT/0/g" "${TMP_MY_CNF}"
 else 
-    sed -i "s/@INNODB_FLUSH_LOG_AT_TRX_COMMIT/1/g" "$TMP_MY_CNF"
+    ss_sed "s/@INNODB_FLUSH_LOG_AT_TRX_COMMIT/1/g" "${TMP_MY_CNF}"
 fi
 
 ####################################################################################################
-#### SS-Install-MySQL-Config: Remove Version-Specific Settings #####################################
+#### E. SS-Install-MySQL-Config: Remove Version-Specific Settings ##################################
 ####################################################################################################
 
 ## delete incompatible settings if running mysql 8.0 ##
-if [[ "${UBUNTU_VERSION}" == "20.04" ]]; then
-    sed -i '/## MySQL 5.7/d' "$TMP_MY_CNF"
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "20.04" ]]; then
+    ss_sed '/## MySQL 5.7/d' "${TMP_MY_CNF}"
 fi
 
 ## delete incompatible settings if running mysql 5.7 ##
-if [[ "${UBUNTU_VERSION}" == "18.04" ]]; then
-    sed -i '/## MySQL 8.0/d' "$TMP_MY_CNF"
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "18.04" ]]; then
+    ss_sed '/## MySQL 8.0/d' "${TMP_MY_CNF}"
 fi
 
 ## copy files to their destinations ##
-cp "$TMP_MY_CNF" "$PATH_MY_CNF"
+ss_cp "${TMP_MY_CNF}" "${PATH_MY_CNF}"
 
 ####################################################################################################
-#### SS-Install-MySQL-COnfig: Restart Modules (MySQL) ##############################################
+#### F. SS-Install-MySQL-Config: Restart Modules (MySQL) ###########################################
 ####################################################################################################
 
-## run ss-restart-mysql ##
-source "$PATH_SS_RESTART_MYSQL"
+source "${PATH_SS_RESTART_MYSQL}"
 
 ####################################################################################################
-#### SS-Install-MySQL-COnfig: Reset Permissions (MySQL Config) #####################################
+#### G. SS-Install-MySQL-Config: Reset Permissions (MySQL Config) ##################################
 ####################################################################################################
 
-## run ss-perms-mysql-config ##
-source "$PATH_SS_PERMS_MYSQL_CONFIG"
+source "${PATH_SS_PERMS_MYSQL_CONFIG}"
 
 fi
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##

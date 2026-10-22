@@ -37,7 +37,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_PERMS_UBUNTU_BASH}"
 
 ####################################################################################################
@@ -45,9 +44,8 @@ ss_touch "${TIMESTAMP_SS_PERMS_UBUNTU_BASH}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-perms-ubuntu-bash... ${COLOR_RESET}"
 
 ####################################################################################################
@@ -59,7 +57,7 @@ chown root:root "$PATH_BASHRC"
 chmod 0644 "$PATH_BASHRC" ## 0644 is enough
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##

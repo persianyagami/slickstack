@@ -3,13 +3,13 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-install-wordpress-config.txt ####################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-install-wordpress-config.txt ###############
 #### path: /var/www/ss-install-wordpress-config ####################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Reinstalls WordPress module (CMS) config files based on ss-config (idempotent) #######
-#### module version: WordPress 6.0.x ###############################################################
+#### module version: WordPress 6.6.x ###############################################################
 #### sourced by: ss-install, ss-install-nginx-config ###############################################
-#### bash aliases: ss install [wordpress|wp] config ################################################
+#### bash aliases: ss install wordpress|wp config ##################################################
 ####################################################################################################
 
 ## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
@@ -46,7 +46,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_INSTALL_WORDPRESS_CONFIG}"
 
 ####################################################################################################
@@ -54,86 +53,26 @@ ss_touch "${TIMESTAMP_SS_INSTALL_WORDPRESS_CONFIG}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-install-wordpress-config... ${COLOR_RESET}"
+
+####################################################################################################
+#### X. Change To Default Directory #####################################
+####################################################################################################
+
+ss_cd_default
 
 ####################################################################################################
 #### SS-Worker: Install Latest SS-Constants.php Boilerplate ########################################
 ####################################################################################################
 
 ## move to ss-install-php-config ??
-## SNIPPET: ss-worker, ss-install-wordpress-config
-## UPDATED:
-
-## retrieve ss-constants.php boilerplate ##
-ss_wget "${TMP_SS_CONSTANTS_PHP}" "${MIRROR_SS_CONSTANTS_PHP}"
-VALIDATE_TMP_SS_CONSTANTS_PHP=$(grep 'SS_EOF' "${TMP_SS_CONSTANTS_PHP}" 2> /dev/null)
-if [[ -z "${VALIDATE_TMP_SS_CONSTANTS_PHP}" ]]; then
-    ss_wget "${TMP_SS_CONSTANTS_PHP}" "${MIRROR2_SS_CONSTANTS_PHP}"
-fi
-VALIDATE2_TMP_SS_CONSTANTS_PHP=$(grep 'SS_EOF' "${TMP_SS_CONSTANTS_PHP}" 2> /dev/null)
-if [[ -z "${VALIDATE2_TMP_SS_CONSTANTS_PHP}" ]]; then
-    ss_wget "${TMP_SS_CONSTANTS_PHP}" "${MIRROR3_SS_CONSTANTS_PHP}"
-fi
-
-    ## set SlickStack dashboard ##
-    if [[ -z "$SS_WORDPRESS_ADMIN_DASHBOARD" ]]; then 
-        ss_sed "s/@SS_WORDPRESS_ADMIN_DASHBOARD/true/g" "$TMP_SS_CONSTANTS_PHP"
-    else 
-        ss_sed "s/@SS_WORDPRESS_ADMIN_DASHBOARD/${SS_WORDPRESS_ADMIN_DASHBOARD}/g" "$TMP_SS_CONSTANTS_PHP"
-    fi
-    
-SYSTEM_SERVER_SOFTWARE=$(nginx -v |& sed 's#nginx version: nginx/##')
-SYSTEM_MYSQL_SIZE=$(du -sh /var/lib/mysql |& sed 's#/var/lib/mysql##')
-SYSTEM_MYSQL_VERSION=$(mysql --version |& awk '{print $3}')
-
-
-
-
-ss_sed "s|@SYSTEM_VENDOR|${SYSTEM_VENDOR}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_VIRTUAL|${SYSTEM_VIRTUAL}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_LINUX_KERNEL|${SYSTEM_LINUX_KERNEL}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_CPU_CORES|${SYSTEM_CPU_CORES}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_OS_PRETTY_NAME|${SYSTEM_OS_PRETTY_NAME}|g" "$TMP_SS_CONSTANTS_PHP"
-
-if [[ "${SS_DATABASE_REMOTE}" != "false" ]]; then
-    ss_sed "/MYSQL_VERSION/d" "${TMP_SS_CONSTANTS_PHP}"
-else
-    ss_sed "s|@SYSTEM_MYSQL_VERSION|${SYSTEM_MYSQL_VERSION}|g" "${TMP_SS_CONSTANTS_PHP}"
-fi
-
-if [[ "${SS_DATABASE_REMOTE}" != "false" ]]; then
-    ss_sed "/MYSQL_SIZE/d" "${TMP_SS_CONSTANTS_PHP}"
-else
-    ss_sed "s|@SYSTEM_MYSQL_SIZE|${SYSTEM_MYSQL_SIZE}|g" "${TMP_SS_CONSTANTS_PHP}"
-fi
-
-ss_sed "s|@SYSTEM_DISK_FREE|${SYSTEM_DISK_FREE}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_DISK_TOTAL|${SYSTEM_DISK_TOTAL}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_IPV4_ADDRESS|${SYSTEM_IPV4_ADDRESS}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_IPV6_ADDRESS|${SYSTEM_IPV6_ADDRESS}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_HOSTNAME|${SYSTEM_HOSTNAME}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_SERVER_SOFTWARE|${SYSTEM_SERVER_SOFTWARE}|g" "$TMP_SS_CONSTANTS_PHP"
-
-SYSTEM_PHP_VERSION=$(php -v | awk '/^PHP/{print $2}')
-# SYSTEM_PHP_EXTENSIONS
-ss_sed "s|@SYSTEM_PHP_VERSION|${SYSTEM_PHP_VERSION}|g" "$TMP_SS_CONSTANTS_PHP"
-ss_sed "s|@SYSTEM_PHP_EXTENSIONS|${SYSTEM_PHP_EXTENSIONS}|g" "$TMP_SS_CONSTANTS_PHP"
-
-VALIDATE_TMP_SS_CONSTANTS_PHP=$(grep 'SS_EOF' "$TMP_SS_CONSTANTS_PHP")
-if [[ -n "$VALIDATE_TMP_SS_CONSTANTS_PHP" ]]; then
-    cp "$TMP_SS_CONSTANTS_PHP" "$PATH_SS_CONSTANTS_PHP"
-    chown www-data:www-data "$PATH_SS_CONSTANTS_PHP"
-    chmod 0440 "$PATH_SS_CONSTANTS_PHP" ## 0440 (read-only)
-fi 
-
 
 ## run this because ss-constants.php has some temp fixes to replaced @placeholders ##
 
 ## run ss-worker ##
-source "$PATH_SS_WORKER"
+source "${PATH_SS_WORKER}"
 
 ## remove this after above snippet synced with snippet in ss-worker
 
@@ -146,9 +85,9 @@ source "$PATH_SS_WORKER"
 
 ## retrieve latest boilerplate (production) ##
 if [[ "${WP_MULTISITE}" == "true" ]] && [[ "${WP_MULTISITE_SUBDOMAINS}" != "false" ]]; then 
-ss_wget "${TMP_WP_CONFIG_PHP}" "${MIRROR_WP_CONFIG_PHP_PRODUCTION_MULTISITE_SUBDOMAINS}"
+ss_wget "${TMP_WP_CONFIG_PHP}" "${GITHUB_WP_CONFIG_PHP_PRODUCTION_MULTISITE_SUBDOMAINS}"
 else
-ss_wget "${TMP_WP_CONFIG_PHP}" "${MIRROR_WP_CONFIG_PHP_PRODUCTION_SINGLE_SITE}"
+ss_wget "${TMP_WP_CONFIG_PHP}" "${GITHUB_WP_CONFIG_PHP_PRODUCTION_SINGLE_SITE}"
 fi
 
 ## THIS MUST COME BEFORE WP_MULTISITE REPLACEMENTS OTHERWISE IT WILL BE OVERWRITTEN ##
@@ -168,20 +107,13 @@ else
     ss_sed "s/@WP_MULTISITE/false/g" "${TMP_WP_CONFIG_PHP}"
 fi
 
-## set wp cron (always disabled in wp-config for staging and dev sites in slickstack servers) ##
-if [[ "$WP_CRON_METHOD" == "server" ]]; then 
-    ss_sed "s/@DISABLE_WP_CRON/true/g" "${TMP_WP_CONFIG_PHP}"
-else 
-   ss_sed "s/@DISABLE_WP_CRON/false/g" "${TMP_WP_CONFIG_PHP}"
-fi
-
 ## replace database placeholders ##
 ss_sed "s/@DB_NAME/${DB_NAME}/g" "${TMP_WP_CONFIG_PHP}"
 ss_sed "s/@DB_USER/${DB_USER}/g" "${TMP_WP_CONFIG_PHP}"
 ss_sed "s/@DB_PASSWORD/${DB_PASSWORD}/g" "${TMP_WP_CONFIG_PHP}"
 ss_sed "s/@DB_HOST/${DB_HOST}/g" "${TMP_WP_CONFIG_PHP}"
 
-if [[ "${SS_DATABASE_REMOTE}" == "true" ]]; then 
+if [[ "${DB_REMOTE}" == "true" ]]; then 
     ss_sed "s/@DB_PORT/${DB_PORT}/g" "${TMP_WP_CONFIG_PHP}"
 else
     ss_sed "s/@DB_PORT/3306/g" "${TMP_WP_CONFIG_PHP}"
@@ -199,8 +131,9 @@ else
 fi
 
 ## set domains ##
-ss_sed "s/@SITE_DOMAIN/${SITE_DOMAIN}/g" "${TMP_WP_CONFIG_PHP}"
-ss_sed "s/@SITE_TLD/${SITE_TLD}/g" "${TMP_WP_CONFIG_PHP}"
+ss_sed "s/@SITE_DOMAIN_EXCLUDING_WWW/${SITE_DOMAIN_EXCLUDING_WWW}/g" "${TMP_WP_CONFIG_PHP}" ## must be first
+ss_sed "s/@SITE_FULL_DOMAIN/${SITE_FULL_DOMAIN}/g" "${TMP_WP_CONFIG_PHP}"
+ss_sed "s/@SITE_ROOT_DOMAIN/${SITE_ROOT_DOMAIN}/g" "${TMP_WP_CONFIG_PHP}"
 
 ## set SFTP ##
 ss_sed "s/@SFTP_USER/${SFTP_USER}/g" "${TMP_WP_CONFIG_PHP}"
@@ -310,7 +243,7 @@ fi
 if [[ "${STAGING_SITE}" == "true" ]]; then 
 
 ## retrieve latest boilerplate (staging) ##
-ss_wget "${TMP_WORDPRESS_CONFIG_STAGING}" "${MIRROR_WP_CONFIG_STAGING}"
+ss_wget "${TMP_WORDPRESS_CONFIG_STAGING}" "${GITHUB_WP_CONFIG_STAGING}"
 
 ###### WP Multisite settings ########
 
@@ -337,7 +270,7 @@ ss_sed "s/@DB_USER/${DB_USER}/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
 ss_sed "s/@DB_PASSWORD/${DB_PASSWORD}/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
 ss_sed "s/@DB_HOST/${DB_HOST}/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
 
-if [[ "${SS_DATABASE_REMOTE}" == "true" ]]; then 
+if [[ "${DB_REMOTE}" == "true" ]]; then 
     ss_sed "s/@DB_PORT/${DB_PORT}/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
 else
     ss_sed "s/@DB_PORT/3306/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
@@ -352,8 +285,9 @@ ss_sed "s/@OBJECT_CACHE/false/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
 
 
 ## replace domain placeholders ##
-ss_sed "s#@SITE_DOMAIN#${SITE_DOMAIN_EXCLUDING_WWW}#g" "${TMP_WORDPRESS_CONFIG_STAGING}"
-ss_sed "s/@SITE_TLD/${SITE_TLD}/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
+ss_sed "s/@SITE_DOMAIN_EXCLUDING_WWW/${SITE_DOMAIN_EXCLUDING_WWW}/g" "${TMP_WORDPRESS_CONFIG_STAGING}" ## must be first
+ss_sed "s#@SITE_FULL_DOMAIN#${SITE_DOMAIN_EXCLUDING_WWW}#g" "${TMP_WORDPRESS_CONFIG_STAGING}"
+ss_sed "s/@SITE_ROOT_DOMAIN/${SITE_ROOT_DOMAIN}/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
 
 ## replace SFTP Details placeholders ##
 ss_sed "s/@SFTP_USER/${SFTP_USER}/g" "${TMP_WORDPRESS_CONFIG_STAGING}"
@@ -449,7 +383,7 @@ fi
 if [[ "${DEV_SITE}" == "true" ]]; then 
 
 ## retrieve latest boilerplate (dev) ##
-ss_wget "${TMP_WORDPRESS_CONFIG_DEV}" "${MIRROR_WP_CONFIG_DEV}"
+ss_wget "${TMP_WORDPRESS_CONFIG_DEV}" "${GITHUB_WP_CONFIG_DEV}"
 
 ###### WP Multisite settings ########
 
@@ -476,7 +410,7 @@ ss_sed "s/@DB_USER/${DB_USER}/g" "${TMP_WORDPRESS_CONFIG_DEV}"
 ss_sed "s/@DB_PASSWORD/${DB_PASSWORD}/g" "${TMP_WORDPRESS_CONFIG_DEV}"
 ss_sed "s/@DB_HOST/${DB_HOST}/g" "${TMP_WORDPRESS_CONFIG_DEV}"
 
-if [[ "${SS_DATABASE_REMOTE}" == "true" ]]; then 
+if [[ "${DB_REMOTE}" == "true" ]]; then 
     ss_sed "s/@DB_PORT/${DB_PORT}/g" "${TMP_WORDPRESS_CONFIG_DEV}"
 else
     ss_sed "s/@DB_PORT/3306/g" "${TMP_WORDPRESS_CONFIG_DEV}"
@@ -491,8 +425,9 @@ ss_sed "s/@OBJECT_CACHE/false/g" "${TMP_WORDPRESS_CONFIG_DEV}"
 
 
 ## replace domain placeholders ##
-ss_sed "s#@SITE_DOMAIN#${SITE_DOMAIN_EXCLUDING_WWW}#g" "${TMP_WORDPRESS_CONFIG_DEV}"
-ss_sed "s/@SITE_TLD/${SITE_TLD}/g" "${TMP_WORDPRESS_CONFIG_DEV}"
+ss_sed "s/@SITE_DOMAIN_EXCLUDING_WWW/${SITE_DOMAIN_EXCLUDING_WWW}/g" "${TMP_WORDPRESS_CONFIG_DEV}" ## must be first
+ss_sed "s#@SITE_FULL_DOMAIN#${SITE_FULL_DOMAIN}#g" "${TMP_WORDPRESS_CONFIG_DEV}"
+ss_sed "s/@SITE_ROOT_DOMAIN/${SITE_ROOT_DOMAIN}/g" "${TMP_WORDPRESS_CONFIG_DEV}"
 
 ## replace SFTP Details placeholders ##
 ss_sed "s/@SFTP_USER/${SFTP_USER}/g" "${TMP_WORDPRESS_CONFIG_DEV}"
@@ -572,7 +507,7 @@ else
 fi
 
 ## copy files to destinations ##
-cp "${TMP_WORDPRESS_CONFIG_DEV}" /var/www/html/dev/wp-config.php
+ss_cp "${TMP_WORDPRESS_CONFIG_DEV}" /var/www/html/dev/wp-config.php
 
 fi
 
@@ -587,20 +522,20 @@ fi
 ## UPDATED: 05JUN2022
 
 ## production ##
-if [[ -n $(mysql --execute "SHOW TABLES FROM ${DB_NAME} WHERE Tables_in_${DB_NAME} LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
+if [[ -n $(ss_mysql_user --execute "SHOW TABLES FROM ${DB_NAME} WHERE Tables_in_${DB_NAME} LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
     
-    mysql --execute="UPDATE ${DB_NAME}.${DB_PREFIX}options SET option_value='https://${SITE_DOMAIN}' WHERE option_name='home'";
-    mysql --execute="UPDATE ${DB_NAME}.${DB_PREFIX}options SET option_value='https://${SITE_DOMAIN}' WHERE option_name='siteurl'";
+    ss_mysql_user --execute="UPDATE ${DB_NAME}.${DB_PREFIX}options SET option_value='https://${SITE_FULL_DOMAIN}' WHERE option_name='home'";
+    ss_mysql_user --execute="UPDATE ${DB_NAME}.${DB_PREFIX}options SET option_value='https://${SITE_FULL_DOMAIN}' WHERE option_name='siteurl'";
     
 fi
 
 ## staging ##
 if [[ "${STAGING_SITE}" == "true" ]]; then 
     
-    if [[ -n $(mysql --execute "SHOW TABLES FROM staging WHERE Tables_in_staging LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
+    if [[ -n $(ss_mysql_user --execute "SHOW TABLES FROM staging WHERE Tables_in_staging LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
     
-        mysql --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'";
-        mysql --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'";
+        ss_mysql_user --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'";
+        ss_mysql_user --execute="UPDATE staging.${DB_PREFIX}options SET option_value='https://staging.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'";
     fi
     
 fi
@@ -608,10 +543,10 @@ fi
 ## development ##
 if [[ "${DEV_SITE}" == "true" ]]; then 
     
-    if [[ -n $(mysql --execute "SHOW TABLES FROM development WHERE Tables_in_development LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
+    if [[ -n $(ss_mysql_user --execute "SHOW TABLES FROM development WHERE Tables_in_development LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
     
-        mysql --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'";
-        mysql --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'";
+        ss_mysql_user --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'";
+        ss_mysql_user --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'";
     fi
 
 fi
@@ -634,7 +569,7 @@ source "${PATH_SS_PERMS_WORDPRESS_CONFIG}"
 source "${PATH_SS_PURGE_OPCACHE}"
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##

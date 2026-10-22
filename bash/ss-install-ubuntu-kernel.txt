@@ -3,17 +3,39 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-install-ubuntu-kernel.txt #######################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-install-ubuntu-kernel.txt ##################
 #### path: /var/www/ss-install-ubuntu-kernel #######################################################
 #### destination: n/a (not a boilerplate) ##########################################################
-#### purpose: Reinstalls the Ubuntu (OS) Linux kernel for SlickStack servers (idempotent) ##########
-#### module version: Ubuntu 22.04 LTS ##############################################################
+#### purpose: Reinstalls the Ubuntu Linux kernel for SlickStack servers (idempotent) ###############
+#### module version: Ubuntu 24.04 LTS ##############################################################
 #### sourced by: ss-install ########################################################################
-#### bash aliases: ss install ubuntu kernel, ss install kernel #####################################
+#### bash aliases: ss install kernel, ss install ubuntu kernel #####################################
 ####################################################################################################
 
 ## SS-CONFIG MUST BE PROPERLY CONFIGURED AND ON CURRENT BUILD BEFORE RUNNING SS-INSTALL ##
 ## ENSURE YOUR SS-CONFIG BUILD REMAINS CURRENT BY RUNNING SS-UPDATE OCCASIONALLY ##
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Install-Ubuntu-Kernel) ##################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Install Ubuntu Linux Kernel
+## E. Reset Permissions (Ubuntu Kernel)
+## F. Reload Ubuntu Kernel
+## G. Cleanup Temp Files
+
+####################################################################################################
+#### A. SS-Install-Ubuntu-Kernel: Source SS-Config + SS-Functions ##################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
 
 ## source ss-config ##
 source /var/www/ss-config
@@ -24,61 +46,63 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Install-Ubuntu-Kernel) ##################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-
-####################################################################################################
-#### A. SS-Install-Ubuntu-Kernel: Touch Timestamp File #############################################
+#### B. SS-Install-Ubuntu-Kernel: Touch Timestamp File #############################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_INSTALL_UBUNTU_KERNEL}"
 
 ####################################################################################################
-#### B. SS-Install-Ubuntu-Kernel: Message (Begin Script) ###########################################
+#### C. SS-Install-Ubuntu-Kernel: Message (Begin Script) ###########################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-install-ubuntu-kernel... ${COLOR_RESET}"
 
 ####################################################################################################
-#### SS-Install-Ubuntu-Kernel: Install (Optimize) The Ubuntu Linux Kernel ##########################
+#### D. SS-Install-Ubuntu-Kernel: Install Ubuntu Linux Kernel ######################################
 ####################################################################################################
 
-## backup current Ubunt kernel file ##
-cp /etc/sysctl.conf /etc/sysctl.conf.bak
-
-## download latest versions ##
-ss_wget /tmp/sysctl.conf "$MIRROR_LINUX_KERNEL"
+## download kernel file ##
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "24.04" ]]; then
+    ss_wget "${TMP_SYSCTL_CONF}" "${GITHUB_SYSCTL_CONF_2404}"
+elif [[ "${SYSTEM_UBUNTU_VERSION}" == "22.04" ]]; then
+    ss_wget "${TMP_SYSCTL_CONF}" "${GITHUB_SYSCTL_CONF_2204}"
+elif [[ "${SYSTEM_UBUNTU_VERSION}" == "20.04" ]]; then
+    ss_wget "${TMP_SYSCTL_CONF}" "${GITHUB_SYSCTL_CONF_2004}"
+elif [[ "${SYSTEM_UBUNTU_VERSION}" == "18.04" ]]; then
+    ss_wget "${TMP_SYSCTL_CONF}" "${GITHUB_SYSCTL_CONF_1804}"
+fi
 
 ## copy files to their destinations ##
-cp /tmp/sysctl.conf /etc/sysctl.conf
-
-## reset permissions ##
-chown root:root /etc/sysctl.conf
-chmod 0664 /etc/sysctl.conf
+ss_cp "${TMP_SYSCTL_CONF}" "${PATH_SYSCTL_CONF}"
 
 ####################################################################################################
-#### SS-Install-Ubuntu-Kernel: Reset Permissions (Ubuntu Kernel) ###################################
+#### E. SS-Install-Ubuntu-Kernel: Reset Permissions (Ubuntu Kernel) ################################
 ####################################################################################################
 
-## run ss-perms-ubuntu-kernel ##
 source "${PATH_SS_PERMS_UBUNTU_KERNEL}"
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### F. SS-Install-Ubuntu-Kernel: Reload Ubuntu Kernel #############################################
+####################################################################################################
+
+# sysctl --system > /dev/null ## applies to all sub-config files too
+
+sysctl -p "${PATH_SYSCTL_CONF}" > /dev/null
+
+####################################################################################################
+#### G. SS-Install-Ubuntu-Kernel: Cleanup Temp Files ###############################################
+####################################################################################################
+
+ss_rm "${TMP_SYSCTL_CONF}"
+
+####################################################################################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -99,6 +123,6 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
-## Ref: 
+## Ref: ChatGPT
 
 ## SS_EOF

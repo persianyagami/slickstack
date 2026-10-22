@@ -3,11 +3,11 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: http://mirrors.slickstack.io/ubuntu/custom-shell-prompt.txt ###########################
+#### mirror: littlebizzy/slickstack/blob/master/modules/ubuntu/custom-shell-prompt.txt #############
 #### path: /etc/profile.d/custom-shell-prompt.sh ###################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Makes the shell prompt pretty (displays full hostname and working directory) #########
-#### module version: Ubuntu 20.04 LTS ##############################################################
+#### module version: Ubuntu 24.04 LTS ##############################################################
 #### sourced by: n/a (ss-install) ##################################################################
 ####################################################################################################
 
@@ -15,25 +15,48 @@
 ## IT DISPLAYS USER@HOSTNAME ALONG WITH THE CURRENT WORKING DIRECTORY IN PROMPT ##
 
 ####################################################################################################
-#### Custom-Shell-Prompt: Modify SSH Prompt For All Ubuntu Users ###################################
+#### TABLE OF CONTENTS (Custom-Shell-Prompt) #######################################################
 ####################################################################################################
 
-## PS1="\[\e[1;35m\]\u@$(hostname -f)\e[m\]:\[\e[45m\]\w\[\e[m\]$ "
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Default Linux System Path
+## B. Nano Default Shell Editor
+## C. PS1 (Shell Prompt) Customization
+
+####################################################################################################
+#### A. Custom-Shell-Prompt: Default Linux System Path #############################################
+####################################################################################################
+
+## including the default system path setting below ensures wget (etc) works properly ##
+## this setting is also placed in ss-functions for SlickStack bash scripts ##
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+####################################################################################################
+#### B. Custom-Shell-Prompt: Nano Default Shell Editor #############################################
+####################################################################################################
+
+## nano replaced vim as the default in recent Ubuntu releases but we still retain this ##
+## since SlickStack aims to be extremely user-friendly we discourage using vim ##
+
+export EDITOR="/usr/bin/nano"
+
+####################################################################################################
+#### C. Custom-Shell-Prompt: PS1 (Shell Prompt) Customization ######################################
+####################################################################################################
 
 ## here we customize the shell prompt for all Ubuntu users (new session may be required) ##
 ## the prompt will include user@hostname in pink and working directory in purple ##
 
-# export PROMPT_COMMAND=’export PS1="\[\e[1;35m\]\u@$(hostname -f)\e[m\]:\[\e[45m\]\w\[\e[m\]$ "‘
-
-PS1="\[\e[1;35m\]\u@$(hostname -f)\e[m\]:\[\e[45m\]\w\[\e[m\]$ "
-
-## restart bash shell ##
-# exec bash
+PS1="\[\e[1;35m\]\u@\$(hostname -f)\[\e[0m\]:\[\e[45m\]\w\\[\e[0m\]$ \[$(tput sgr0)\]"
 
 ####################################################################################################
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
+## Ref: ChatGPT
 ## Ref: https://serverfault.com/questions/545215/change-ps1-value-for-all-bash-users
 ## Ref: https://serverfault.com/questions/218629/most-effective-way-to-change-linux-command-prompt-for-all-users
 ## Ref: https://stackoverflow.com/questions/2518127/how-do-i-reload-bashrc-without-logging-out-and-back-in

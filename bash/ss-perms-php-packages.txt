@@ -3,14 +3,36 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-perms-php-packages.txt ##########################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-perms-php-packages.txt #####################
 #### path: /var/www/ss-perms-php-packages ##########################################################
 #### destination: n/a (not a boilerplate) ##########################################################
-#### purpose: Resets file and user permissions for PHP-FPM module core files and folders ###########
-#### module version: PHP-FPM 8.1.x #################################################################
+#### purpose: Resets ownership and permissions for PHP-FPM module files and directories ############
+#### module version: PHP-FPM 7.2.x to 8.3.x ########################################################
 #### sourced by: ss-install-php-packages, ss-perms #################################################
-#### bash aliases: ss perms php packages, ss perms php-fpm packages ################################
+#### bash aliases: ss perms php packages ###########################################################
 ####################################################################################################
+
+####################################################################################################
+#### TABLE OF CONTENTS (SS-Perms-PHP-Packages) #####################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Source SS-Config + SS-Functions
+## B. Touch Timestamp File
+## C. Message (Begin Script)
+## D. Reset Permissions (PHP Runtime Directory)
+## E. Reset Permissions (PHP Binary and Symlinks)
+## F. Reset Permissions (PHP Config)
+## G. Reset Permissions (PHP Logs)
+
+####################################################################################################
+#### A. SS-Perms-PHP-Packages: Source SS-Config + SS-Functions #####################################
+####################################################################################################
+
+## before anything else we must source the critical variables that power this script ##
+## ss-config is setup during ss-install wizard but ss-functions is hardcoded ##
 
 ## source ss-config ##
 source /var/www/ss-config
@@ -21,46 +43,62 @@ source /var/www/ss-functions
 ## BELOW THIS RELIES ON SS-CONFIG AND SS-FUNCTIONS
 
 ####################################################################################################
-#### TABLE OF CONTENTS (SS-Perms-PHP-Packages) #####################################################
-####################################################################################################
-
-## this is a brief summary of the different code snippets you will find in this script ##
-## each section should be commented so you understand what is being accomplished ##
-
-## A. Touch Timestamp File
-## B. Message (Begin Script)
-## C. Reset Permissions (PHP-FPM)
-
-####################################################################################################
-#### A. SS-Perms-PHP-Packages: Touch Timestamp File ################################################
+#### B. SS-Perms-PHP-Packages: Touch Timestamp File ################################################
 ####################################################################################################
 
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_PERMS_PHP_PACKAGES}"
 
 ####################################################################################################
-#### B. SS-Perms-PHP-Packages: Message (Begin Script) ##############################################
+#### C. SS-Perms-PHP-Packages: Message (Begin Script) ##############################################
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-perms-php-packages... ${COLOR_RESET}"
 
 ####################################################################################################
-#### C. SS-Perms-PHP-Packages: Reset Permissions (PHP-FPM) #########################################
+#### D. SS-Perms-PHP-Packages: Reset Permissions (PHP Runtime Directory) ###########################
 ####################################################################################################
 
-mkdir /var/run/php
+ss_mkdir /var/run/php
+chown www-data:www-data /var/run/php
+chmod 750 /var/run/php
 
-# chown www-data:www-data /var/run/php
+####################################################################################################
+#### E. SS-Perms-PHP-Packages: Reset Permissions (PHP Binary and Symlinks) #########################
+####################################################################################################
+
+## /usr/bin/php is a symlink to /etc/alternatives/php ##
+chown root:root /usr/bin/php
+chmod 755 /usr/bin/php
+
+## /etc/alternatives/php is a symlink to /usr/bin/phpX.X ##
+chown root:root /etc/alternatives/php
+chmod 755 /etc/alternatives/php
+
+## resolve the actual php binary path and fix its permissions ##
+PHP_REAL_BIN=$(readlink -f /usr/bin/php)
+chown root:root "${PHP_REAL_BIN}"
+chmod 755 "${PHP_REAL_BIN}"
+
+####################################################################################################
+#### F. SS-Perms-PHP-Packages: Reset Permissions (PHP Config) ######################################
+####################################################################################################
+
+## ubuntu 24.04 ##
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "24.04" ]]; then
+    chown root:root /etc/php/8.3/fpm/php-fpm.conf
+    chown root:root /etc/php/8.3/fpm/php.ini
+    chown root:root /etc/php/8.3/cli/php.ini
+    chown root:root /etc/php/8.3/fpm/pool.d/www.conf
+fi
 
 ## ubuntu 22.04 ##
-if [[ "${UBUNTU_VERSION}" == "22.04" ]]; then
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "22.04" ]]; then
     chown root:root /etc/php/8.1/fpm/php-fpm.conf
     chown root:root /etc/php/8.1/fpm/php.ini
     chown root:root /etc/php/8.1/cli/php.ini
@@ -68,7 +106,7 @@ if [[ "${UBUNTU_VERSION}" == "22.04" ]]; then
 fi
 
 ## ubuntu 20.04 ##
-if [[ "${UBUNTU_VERSION}" == "20.04" ]]; then
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "20.04" ]]; then
     chown root:root /etc/php/7.4/fpm/php-fpm.conf
     chown root:root /etc/php/7.4/fpm/php.ini
     chown root:root /etc/php/7.4/cli/php.ini
@@ -76,20 +114,23 @@ if [[ "${UBUNTU_VERSION}" == "20.04" ]]; then
 fi
 
 ## ubuntu 18.04 ##
-if [[ "${UBUNTU_VERSION}" == "18.04" ]]; then
+if [[ "${SYSTEM_UBUNTU_VERSION}" == "18.04" ]]; then
     chown root:root /etc/php/7.2/fpm/php.ini
     chown root:root /etc/php/7.2/fpm/php-fpm.conf
     chown root:root /etc/php/7.2/cli/php.ini
     chown root:root /etc/php/7.2/fpm/pool.d/www.conf
 fi
 
-if [ ! -f "/var/www/logs/php-error.log" ]; then touch "/var/www/logs/php-error.log"; fi
+####################################################################################################
+#### G. SS-Perms-PHP-Packages: Reset Permissions (PHP Logs) ########################################
+####################################################################################################
 
+if [ ! -f "/var/www/logs/php-error.log" ]; then ss_touch "/var/www/logs/php-error.log"; fi
 chown www-data:www-data /var/www/logs/php-error.log
-# chmod 0644 /var/www/logs/php-error.log ## 0755 should also work
+chmod 0660 /var/www/logs/php-error.log ## must be 0660
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -110,6 +151,6 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
-## Ref:
+## Ref: ChatGPT
 
 ## SS_EOF

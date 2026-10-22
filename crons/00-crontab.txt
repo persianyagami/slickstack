@@ -1,16 +1,16 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/crons/00-crontab.txt ####################################
-#### path: /var/www/crons/00-crontab (boilerplate remains here for reference) ######################
+#### mirror: littlebizzy/slickstack/blob/master/crons/00-crontab.txt ###############################
+#### path: /var/www/crons/00-crontab (template file) ###############################################
 #### destination: /var/spool/cron/crontabs/root (after install) ####################################
-#### purpose: SlickStack root crontab boilerplate (never, ever modify the root crontab) ############
-#### module version: Ubuntu 22.04 LTS ##############################################################
+#### purpose: SlickStack root crontab boilerplate (do not ever modify the root crontab) ############
+#### module version: Ubuntu 18.04-24.04 LTS ########################################################
 #### sourced by: n/a ###############################################################################
-#### bash aliases: n/a (ss-install-ubuntu-crontab) #################################################
+#### bash aliases: n/a (handled by ss-install-ubuntu-crontab) ######################################
 ####################################################################################################
 
-## NEVER MODIFY ROOT CRONTAB OR SLICKSTACK CRON JOBS OR YOUR STACK WILL STOP WORKING ##
+## NEVER MODIFY ROOT CRONTAB AND SLICKSTACK CRON JOBS OR YOUR STACK WILL STOP WORKING ##
 ## INSTEAD ADJUST INTERVAL_SS SETTINGS IN SS-CONFIG OR EDIT CUSTOM CRON FILES ##
 
 ## THIS CRONTAB FILE DOES NOT RELY ON SS-CONFIG OR SS-FUNCTIONS
@@ -18,7 +18,20 @@
 ## @RANDOM_STRING (forces crontab to reload)
 
 ####################################################################################################
-#### Crontab: Use Bash Instead Of Sh ###############################################################
+#### TABLE OF CONTENTS (Crontab) ###################################################################
+####################################################################################################
+
+## this is a brief summary of the different code snippets you will find in this script ##
+## each section should be commented so you understand what is being accomplished ##
+
+## A. Use Bash Instead Of Sh
+## B. Set Default Linux System Path
+## C. Run Cron Jobs (DO NOT EDIT)
+## D. Cleanup Stale Lock Files
+## E. Self-Healing (Repairs Cron Jobs)
+
+####################################################################################################
+#### A. Crontab: Use Bash Instead Of Sh ############################################################
 ####################################################################################################
 
 ## to take advantage of modern shell scripting syntax SlickStack supports Bash only ##
@@ -27,7 +40,7 @@
 SHELL="/bin/bash"
 
 ####################################################################################################
-#### Crontab: Set Default Linux System Path ########################################################
+#### B. Crontab: Set Default Linux System Path #####################################################
 ####################################################################################################
 
 ## including the default system path setting below ensures wget (etc) works properly ##
@@ -36,7 +49,7 @@ SHELL="/bin/bash"
 PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 ####################################################################################################
-#### Crontab: Run SlickStack Cron Jobs (DO NOT EDIT) ###############################################
+#### C. Crontab: Run Cron Jobs (DO NOT EDIT) #######################################################
 ####################################################################################################
 
 ## this schedule is hardcoded to run SlickStack cron jobs and must never be modified ##
@@ -44,55 +57,73 @@ PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 MAILTO=""
 
-*/2 * * * * /usr/bin/flock -w 0 /tmp/01-cron-often.lock /var/www/crons/01-cron-often > /dev/null 2>&1
-*/5 * * * * /usr/bin/flock -w 0 /tmp/02-cron-regular.lock /var/www/crons/02-cron-regular > /dev/null 2>&1
-*/15 * * * * /usr/bin/flock -w 0 /tmp/03-cron-quarter-hourly.lock /var/www/crons/03-cron-quarter-hourly > /dev/null 2>&1
-*/30 * * * * /usr/bin/flock -w 0 /tmp/04-cron-half-hourly.lock /var/www/crons/04-cron-half-hourly > /dev/null 2>&1
-0 * * * * /usr/bin/flock -w 0 /tmp/05-cron-hourly.lock /var/www/crons/05-cron-hourly > /dev/null 2>&1
-0 */6 * * * /usr/bin/flock -w 0 /tmp/06-cron-quarter-daily.lock /var/www/crons/06-cron-quarter-daily > /dev/null 2>&1
-0 */12 * * * /usr/bin/flock -w 0 /tmp/07-cron-half-daily.lock /var/www/crons/07-cron-half-daily > /dev/null 2>&1
-0 0 * * * /usr/bin/flock -w 0 /tmp/08-cron-daily.lock /var/www/crons/08-cron-daily > /dev/null 2>&1
-0 0 */3 * * /usr/bin/flock -w 0 /tmp/09-cron-half-weekly.lock /var/www/crons/09-cron-half-weekly > /dev/null 2>&1
-0 0 * * 0 /usr/bin/flock -w 0 /tmp/10-cron-weekly.lock /var/www/crons/10-cron-weekly > /dev/null 2>&1
-0 0 13 * * /usr/bin/flock -w 0 /tmp/11-cron-half-monthly.lock /var/www/crons/11-cron-half-monthly > /dev/null 2>&1
-0 0 1 * * /usr/bin/flock -w 0 /tmp/12-cron-monthly.lock /var/www/crons/12-cron-monthly > /dev/null 2>&1
-0 0 1 */2 * /usr/bin/flock -w 0 /tmp/13-cron-sometimes.lock /var/www/crons/13-cron-sometimes > /dev/null 2>&1
+*/1 * * * * /usr/bin/flock -w 0 /tmp/01-cron-minutely.lock /var/www/crons/01-cron-minutely > /dev/null 2>&1
+*/2 * * * * /usr/bin/flock -w 0 /tmp/02-cron-often.lock /var/www/crons/02-cron-often > /dev/null 2>&1
+*/5 * * * * /usr/bin/flock -w 0 /tmp/03-cron-regular.lock /var/www/crons/03-cron-regular > /dev/null 2>&1
+*/15 * * * * /usr/bin/flock -w 0 /tmp/04-cron-quarter-hourly.lock /var/www/crons/04-cron-quarter-hourly > /dev/null 2>&1
+*/30 * * * * /usr/bin/flock -w 0 /tmp/05-cron-half-hourly.lock /var/www/crons/05-cron-half-hourly > /dev/null 2>&1
+0 * * * * /usr/bin/flock -w 0 /tmp/06-cron-hourly.lock /var/www/crons/06-cron-hourly > /dev/null 2>&1
+0 */6 * * * /usr/bin/flock -w 0 /tmp/07-cron-quarter-daily.lock /var/www/crons/07-cron-quarter-daily > /dev/null 2>&1
+0 */12 * * * /usr/bin/flock -w 0 /tmp/08-cron-half-daily.lock /var/www/crons/08-cron-half-daily > /dev/null 2>&1
+0 0 * * * /usr/bin/flock -w 0 /tmp/09-cron-daily.lock /var/www/crons/09-cron-daily > /dev/null 2>&1
+0 0 */3 * * /usr/bin/flock -w 0 /tmp/10-cron-half-weekly.lock /var/www/crons/10-cron-half-weekly > /dev/null 2>&1
+0 0 * * 0 /usr/bin/flock -w 0 /tmp/11-cron-weekly.lock /var/www/crons/11-cron-weekly > /dev/null 2>&1
+0 0 13 * * /usr/bin/flock -w 0 /tmp/12-cron-half-monthly.lock /var/www/crons/12-cron-half-monthly > /dev/null 2>&1
+0 0 1 * * /usr/bin/flock -w 0 /tmp/13-cron-monthly.lock /var/www/crons/13-cron-monthly > /dev/null 2>&1
+0 0 1 */2 * /usr/bin/flock -w 0 /tmp/14-cron-sometimes.lock /var/www/crons/14-cron-sometimes > /dev/null 2>&1
 
 ## new line to avoid conflicts ##
 
 ####################################################################################################
-#### Crontab: Self-Healing Functions (Reinstalls SlickStack Cron Jobs) #############################
+#### D. Crontab: Cleanup Stale Lock Files ##########################################################
 ####################################################################################################
 
-## this will reinstall SlickStack cron job files in case they are missing or damaged ##
-## but it is not foolproof so running ss-update occassionally is a good idea ##
+## this will cleanup any stale lock files in the case they become frozen or otherwise ##
+## it is set to remove lock files that are 6 hours old which is pretty safe ##
 
 MAILTO=""
 
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/01-cron-often https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/01-cron-often.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/02-cron-regular https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/02-cron-regular.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/03-cron-quarter-hourly https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/03-cron-quarter-hourly.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/04-cron-half-hourly https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/04-cron-half-hourly.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/05-cron-hourly https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/05-cron-hourly.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/06-cron-quarter-daily https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/06-cron-quarter-daily.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/07-cron-half-daily https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/07-cron-half-daily.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/08-cron-daily https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/08-cron-daily.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/09-cron-half-weekly https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/09-cron-half-weekly.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/10-cron-weekly https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/10-cron-weekly.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/11-cron-half-monthly https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/11-cron-half-monthly.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/12-cron-monthly https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/12-cron-monthly.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'wget --no-check-certificate -q -4 -t 3 -T 30 -O /var/www/crons/13-cron-sometimes https://raw.githubusercontent.com/littlebizzy/slickstack/master/crons/13-cron-sometimes.txt' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'chown root:root /var/www/crons/*cron*' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'chown root:root /var/www/crons/custom/*cron*' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'chmod 0700 /var/www/crons/*cron*' > /dev/null 2>&1
-47 */3 * * * /bin/bash -c 'chmod 0700 /var/www/crons/custom/*cron*' > /dev/null 2>&1
+*/30 * * * * /usr/bin/find /tmp/*.lock -mmin +360 -delete > /dev/null 2>&1
 
 ## new line to avoid conflicts ##
 
 ####################################################################################################
-#### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
+#### E. Crontab: Self-Healing (Repairs Cron Jobs) ##################################################
 ####################################################################################################
 
+## this will reinstall SlickStack cron job files in case they are missing or damaged ##
+## it is not foolproof so running ss-install occassionally is recommended ##
+
+MAILTO=""
+
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-01-cron-minutely https://slick.fyi/crons/01-cron-minutely.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-01-cron-minutely https://slick.fyi/crons/01-cron-minutely.txt; }; [ -s /tmp/heal-01-cron-minutely ] && grep -q "SS_EOF" /tmp/heal-01-cron-minutely && mv -f /tmp/heal-01-cron-minutely /var/www/crons/01-cron-minutely && chmod 0700 /var/www/crons/01-cron-minutely || rm -f /tmp/heal-01-cron-minutely' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-02-cron-often https://slick.fyi/crons/02-cron-often.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-02-cron-often https://slick.fyi/crons/02-cron-often.txt; }; [ -s /tmp/heal-02-cron-often ] && grep -q "SS_EOF" /tmp/heal-02-cron-often && mv -f /tmp/heal-02-cron-often /var/www/crons/02-cron-often && chmod 0700 /var/www/crons/02-cron-often || rm -f /tmp/heal-02-cron-often' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-03-cron-regular https://slick.fyi/crons/03-cron-regular.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-03-cron-regular https://slick.fyi/crons/03-cron-regular.txt; }; [ -s /tmp/heal-03-cron-regular ] && grep -q "SS_EOF" /tmp/heal-03-cron-regular && mv -f /tmp/heal-03-cron-regular /var/www/crons/03-cron-regular && chmod 0700 /var/www/crons/03-cron-regular || rm -f /tmp/heal-03-cron-regular' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-04-cron-quarter-hourly https://slick.fyi/crons/04-cron-quarter-hourly.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-04-cron-quarter-hourly https://slick.fyi/crons/04-cron-quarter-hourly.txt; }; [ -s /tmp/heal-04-cron-quarter-hourly ] && grep -q "SS_EOF" /tmp/heal-04-cron-quarter-hourly && mv -f /tmp/heal-04-cron-quarter-hourly /var/www/crons/04-cron-quarter-hourly && chmod 0700 /var/www/crons/04-cron-quarter-hourly || rm -f /tmp/heal-04-cron-quarter-hourly' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-05-cron-half-hourly https://slick.fyi/crons/05-cron-half-hourly.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-05-cron-half-hourly https://slick.fyi/crons/05-cron-half-hourly.txt; }; [ -s /tmp/heal-05-cron-half-hourly ] && grep -q "SS_EOF" /tmp/heal-05-cron-half-hourly && mv -f /tmp/heal-05-cron-half-hourly /var/www/crons/05-cron-half-hourly && chmod 0700 /var/www/crons/05-cron-half-hourly || rm -f /tmp/heal-05-cron-half-hourly' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-06-cron-hourly https://slick.fyi/crons/06-cron-hourly.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-06-cron-hourly https://slick.fyi/crons/06-cron-hourly.txt; }; [ -s /tmp/heal-06-cron-hourly ] && grep -q "SS_EOF" /tmp/heal-06-cron-hourly && mv -f /tmp/heal-06-cron-hourly /var/www/crons/06-cron-hourly && chmod 0700 /var/www/crons/06-cron-hourly || rm -f /tmp/heal-06-cron-hourly' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-07-cron-quarter-daily https://slick.fyi/crons/07-cron-quarter-daily.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-07-cron-quarter-daily https://slick.fyi/crons/07-cron-quarter-daily.txt; }; [ -s /tmp/heal-07-cron-quarter-daily ] && grep -q "SS_EOF" /tmp/heal-07-cron-quarter-daily && mv -f /tmp/heal-07-cron-quarter-daily /var/www/crons/07-cron-quarter-daily && chmod 0700 /var/www/crons/07-cron-quarter-daily || rm -f /tmp/heal-07-cron-quarter-daily' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-08-cron-half-daily https://slick.fyi/crons/08-cron-half-daily.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-08-cron-half-daily https://slick.fyi/crons/08-cron-half-daily.txt; }; [ -s /tmp/heal-08-cron-half-daily ] && grep -q "SS_EOF" /tmp/heal-08-cron-half-daily && mv -f /tmp/heal-08-cron-half-daily /var/www/crons/08-cron-half-daily && chmod 0700 /var/www/crons/08-cron-half-daily || rm -f /tmp/heal-08-cron-half-daily' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-09-cron-daily https://slick.fyi/crons/09-cron-daily.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-09-cron-daily https://slick.fyi/crons/09-cron-daily.txt; }; [ -s /tmp/heal-09-cron-daily ] && grep -q "SS_EOF" /tmp/heal-09-cron-daily && mv -f /tmp/heal-09-cron-daily /var/www/crons/09-cron-daily && chmod 0700 /var/www/crons/09-cron-daily || rm -f /tmp/heal-09-cron-daily' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-10-cron-half-weekly https://slick.fyi/crons/10-cron-half-weekly.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-10-cron-half-weekly https://slick.fyi/crons/10-cron-half-weekly.txt; }; [ -s /tmp/heal-10-cron-half-weekly ] && grep -q "SS_EOF" /tmp/heal-10-cron-half-weekly && mv -f /tmp/heal-10-cron-half-weekly /var/www/crons/10-cron-half-weekly && chmod 0700 /var/www/crons/10-cron-half-weekly || rm -f /tmp/heal-10-cron-half-weekly' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-11-cron-weekly https://slick.fyi/crons/11-cron-weekly.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-11-cron-weekly https://slick.fyi/crons/11-cron-weekly.txt; }; [ -s /tmp/heal-11-cron-weekly ] && grep -q "SS_EOF" /tmp/heal-11-cron-weekly && mv -f /tmp/heal-11-cron-weekly /var/www/crons/11-cron-weekly && chmod 0700 /var/www/crons/11-cron-weekly || rm -f /tmp/heal-11-cron-weekly' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-12-cron-half-monthly https://slick.fyi/crons/12-cron-half-monthly.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-12-cron-half-monthly https://slick.fyi/crons/12-cron-half-monthly.txt; }; [ -s /tmp/heal-12-cron-half-monthly ] && grep -q "SS_EOF" /tmp/heal-12-cron-half-monthly && mv -f /tmp/heal-12-cron-half-monthly /var/www/crons/12-cron-half-monthly && chmod 0700 /var/www/crons/12-cron-half-monthly || rm -f /tmp/heal-12-cron-half-monthly' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-13-cron-monthly https://slick.fyi/crons/13-cron-monthly.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-13-cron-monthly https://slick.fyi/crons/13-cron-monthly.txt; }; [ -s /tmp/heal-13-cron-monthly ] && grep -q "SS_EOF" /tmp/heal-13-cron-monthly && mv -f /tmp/heal-13-cron-monthly /var/www/crons/13-cron-monthly && chmod 0700 /var/www/crons/13-cron-monthly || rm -f /tmp/heal-13-cron-monthly' > /dev/null 2>&1
+47 */3 * * * /bin/bash -c 'sleep $((RANDOM % 180)) && { wget -q -4 -t 3 -T 10 -O /tmp/heal-14-cron-sometimes https://slick.fyi/crons/14-cron-sometimes.txt || wget -q -6 -t 3 -T 10 -O /tmp/heal-14-cron-sometimes https://slick.fyi/crons/14-cron-sometimes.txt; }; [ -s /tmp/heal-14-cron-sometimes ] && grep -q "SS_EOF" /tmp/heal-14-cron-sometimes && mv -f /tmp/heal-14-cron-sometimes /var/www/crons/14-cron-sometimes && chmod 0700 /var/www/crons/14-cron-sometimes || rm -f /tmp/heal-14-cron-sometimes' > /dev/null 2>&1
+53 */3 * * * /bin/bash -c 'chown root:root /var/www/crons/*cron*' > /dev/null 2>&1
+53 */3 * * * /bin/bash -c 'chown root:root /var/www/crons/custom/*cron*' > /dev/null 2>&1
+53 */3 * * * /bin/bash -c 'chmod 0700 /var/www/crons/*cron*' > /dev/null 2>&1
+53 */3 * * * /bin/bash -c 'chmod 0700 /var/www/crons/custom/*cron*' > /dev/null 2>&1
+
+## new line to avoid conflicts ##
+
+####################################################################################################
+#### SlickStack: External References Used To Improve This Script (Thanks Interwebz) ################
+####################################################################################################
+
+## Ref: ChatGPT
+## Ref: https://slickstack.io/forum/topic/can-littlebizzy-takeover-my-slickstack-server-remotely
+## Ref: https://lowendtalk.com/discussion/201370/beware-of-slickstack-forks-being-released-by-chad-scira/p2
 ## Ref: https://linuxize.com/post/scheduling-cron-jobs-with-crontab/
 ## Ref: https://unix.stackexchange.com/questions/26133/are-multiple-daily-crontab-entries-processed-in-order-serially
 ## Ref: https://askubuntu.com/questions/143666/in-what-order-do-cron-jobs-with-the-same-schedule-run
@@ -125,5 +156,11 @@ MAILTO=""
 ## Ref: https://unix.stackexchange.com/questions/108242/crontab-change-mailto-for-only-one-specific-job-in-roots-crontab
 ## Ref: https://stackoverflow.com/questions/30418188/how-to-force-wget-to-overwrite-an-existing-file-ignoring-timestamp
 ## Ref: https://unix.stackexchange.com/questions/16303/what-is-the-significance-of-single-and-double-quotes-in-environment-variables
+## Ref: https://vpsfix.com/7456/setup-proper-cron-jobs-wordpress-multisite-network/
+## Ref: https://gist.github.com/kasparsd/10b9a8b1217b26992a30
+## Ref: https://tech.chrishardie.com/2020/running-wordpress-cron-on-a-multisite-instance/
+## Ref: https://sabrinazeidan.com/fixing-WordPress-multisite-cron/
+## Ref: https://wordpress.stackexchange.com/questions/167238/running-wp-cron-on-multisite-the-right-way
+## Ref: https://geek.hellyer.kiwi/2017/using-wp-cli-run-cron-jobs-multisite-networks/
 
 ## SS_EOF

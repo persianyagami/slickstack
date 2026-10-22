@@ -42,7 +42,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_INSTALL_UBUNTU_SWAPFILE}"
 
 ####################################################################################################
@@ -50,10 +49,15 @@ ss_touch "${TIMESTAMP_SS_INSTALL_UBUNTU_SWAPFILE}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-install-ubuntu-swapfile... ${COLOR_RESET}"
+
+####################################################################################################
+#### X. Change To Default Directory #####################################
+####################################################################################################
+
+ss_cd_default
 
 ####################################################################################################
 ## C. SS-Install-Ubuntu-Swapfile: Install Swapfile (Conditional) ###################################
@@ -70,7 +74,7 @@ TOTAL_RAM_MB=$(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE) / (1024 * 1
 
 ## install swapfile if not exists ##
 if [[ -z $(grep "swapfile" /etc/fstab 2> /dev/null) ]] && [[ $DISK_REMAINING_MB -gt 5000 ]]; then
-    mkdir /var/www/cache/system
+    ss_mkdir /var/www/cache/system
     chown root:root /var/www/cache/system ## must be root:root
     chmod 0600 /var/www/cache/system ## must be 0600
     
@@ -115,7 +119,7 @@ source "${PATH_SS_PERMS_UBUNTU_SWAPFILE}"
 # swapon --show ## move this to stack-overview
 
 ####################################################################################################
-#### PLACEHOLDER: Reset Permissions (SlickStack Scripts) ###########################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -139,7 +143,7 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 ## manually disable swap ##
 # sudo swapoff -v /swapfile
 # Remove entry from /etc/fstab
-# Remove swapfile with command sudo rm /swapfile
+# Remove swapfile with command ss_rm /swapfile
 
 ## Ref: https://haydenjames.io/linux-performance-almost-always-add-swap-space/
 ## Ref: https://devanswers.co/creating-swap-space-ubuntu-18-04/

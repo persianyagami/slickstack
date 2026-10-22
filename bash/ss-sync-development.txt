@@ -3,13 +3,13 @@
 ####################################################################################################
 #### author: SlickStack ############################################################################
 #### link: https://slickstack.io ###################################################################
-#### mirror: https://mirrors.slickstack.io/bash/ss-sync-development.txt ############################
+#### mirror: littlebizzy/slickstack/blob/master/bash/ss-sync-development.txt #######################
 #### path: /var/www/ss-sync-development ############################################################
 #### destination: n/a (not a boilerplate) ##########################################################
 #### purpose: Syncs all physical files and database from production site to the dev site ###########
-#### module version: MySQL 8.0.x + WordPress 6.0.x #################################################
+#### module version: MySQL 8.0.x + WordPress 6.7.x #################################################
 #### sourced by: n/a ###############################################################################
-#### bash aliases: ss sync [dev|development] #######################################################
+#### bash aliases: ss sync dev|development #########################################################
 ####################################################################################################
 
 ## SS-SYNC-DEVELOPMENT DUPLICATES THE DATABASE AND ALL FILES FROM PRODUCTION TO DEV ##
@@ -25,13 +25,18 @@
 ## A. Source SS-Config + SS-Functions
 ## B. Touch Timestamp File
 ## C. Message (Begin Script)
-## D. Backup Production Database
-## E. Import Production Database To Development Database
-## F. Copy All Files From Production To Development
-## G. Run SS-Install-WordPress-Config (Conditional)
-## H. Run SS-Install-WordPress-MU-Plugins (Conditional)
-## I. Fix Any Hardcoded Links In Development Theme Files
-## J. Reset Permissions (SlickStack Scripts)
+## D. Validate Dev Sync Conditions
+## E. Run SS-Dump-Database
+## F. Install Development Database (Conditional)
+## G. Import Production Database To Development Database
+## H. Copy Relevant Files From Production To Development
+## I. Run SS-Install-WordPress-Config (Conditional)
+## J. Run SS-Install-WordPress-MU-Plugins (Conditional)
+## K. Fix Any Hardcoded Links In Development Theme Files
+## L. Fix Incorrect URLs In Development Database
+## M. Reset Permissions (WordPress)
+## N. Skip If Conditions Not Met
+## O. Cleanup Temporary Files
 
 ####################################################################################################
 #### A. SS-Sync-Development: Source SS-Config + SS-Functions #######################################
@@ -52,7 +57,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_SYNC_DEVELOPMENT}"
 
 ####################################################################################################
@@ -60,119 +64,157 @@ ss_touch "${TIMESTAMP_SS_SYNC_DEVELOPMENT}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-sync-development... ${COLOR_RESET}"
 
 ####################################################################################################
-#### Query Settings
+#### D. SS-Sync-Development: Validate Dev Sync Conditions ##########################################
 ####################################################################################################
 
-## EXPAND SS DASHBOARD USING MYSQL???
-## check if SlickStack dashboard staging.wp_options has paused this script before proceeding
-
-# select EmployeeName from DemoTable where isMarried=true;
-# ss_options_staging_sync_status=$(mysql -BNe "USE staging; SELECT EmployeeName FROM DemoTable WHERE id=1")
-# $sql = "SELECT 'id' FROM Users WHERE username='$name'";
-
-
-if [[ "${SS_SYNC_DEVELOPMENT}" != "false" ]] && [[ "${WP_MULTISITE}" != "true" ]]; then
+if [[ "${DEV_SITE}" == "true" && "${SS_SYNC_DEVELOPMENT}" == "true" && "${WP_MULTISITE}" != "true" && "${SS_LOCKDOWN}" != "true" ]]; then
 
 ####################################################################################################
-#### D. SS-Sync-Development: Backup Production Database ############################################
+#### E. SS-Sync-Development: Run SS-Dump-Database ##################################################
 ####################################################################################################
 
-## we must run ss-dump-database now if no database dump file is found under backups ##
-## this ensures that a dump file exists before atempting to sync it to staging ##
+## we run ss-dump-database now to export the latest version of production database ##
+## this ensures the dump is recent before attempting to sync it to staging ##
 
-## run ss-dump-database ##
 source "${PATH_SS_DUMP_DATABASE}"
 
 ####################################################################################################
-#### E. SS-Sync-Development: Import Production Database To Development Database ####################
+#### F. SS-Sync-Development: Install Development Database (Conditional) ############################
+####################################################################################################
+
+## here we perform a simple check to see if the staging database exists yet or not ##
+## if the database is not detected the script will attempt to install it now ##
+
+if ! ss_mysql_user -e 'use development;' 2> /dev/null; then
+    source "${PATH_SS_INSTALL_MYSQL_DATABASE}"
+fi
+
+####################################################################################################
+#### G. SS-Sync-Development: Import Production Database To Development Database ####################
 ####################################################################################################
 
 ## this snippet duplicates the dumped production database and imports it into MySQL ##
 ## then it forecfully replaces the home/siteurl options to staging subdomain ##
 
-## only if dev site is enabled ##
-if [[ "${DEV_SITE}" == "true" ]]; then
+## import database ##
+ss_cp /var/www/backups/mysql/production.sql "${TMP_DEVELOPMENT_SYNC_SQL}"
+chown mysql:mysql "${TMP_DEVELOPMENT_SYNC_SQL}" ## does not matter if -L flag used below
+chmod 0640 "${TMP_DEVELOPMENT_SYNC_SQL}" ## must be 0640
+ss_mysql_user development < "${TMP_DEVELOPMENT_SYNC_SQL}"
 
-    ## import database ##
-    ss_cp /var/www/backups/mysql/production.sql /tmp/sync-development.sql
-    chown mysql:mysql /tmp/sync-development.sql ## does not matter if -L flag used below
-    chmod 0644 /tmp/sync-development.sql ## does not matter if -L flag used below
-    ss_mysql_8.0 development < /tmp/sync-development.sql
-    
-    ## fix staging home and siteurl fields (no mass search/replace to avoid potential conflicts) ##
-    if [[ "${SS_APP}" == "wordpress" ]]; then
-        if [[ -n $(mysql --execute "SHOW TABLES FROM staging WHERE Tables_in_staging LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
-            mysql --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'";
-            mysql --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'";
-        fi
+## fix development home and siteurl fields (no mass search/replace to avoid potential conflicts) ##
+if [[ "${SS_APP}" == "wordpress" ]]; then
+
+    if [[ -n $(ss_mysql_user --execute "SHOW TABLES FROM development WHERE Tables_in_development LIKE '${DB_PREFIX}options';" 2> /dev/null) ]]; then
+        ss_mysql_user --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='home'"
+        ss_mysql_user --execute="UPDATE development.${DB_PREFIX}options SET option_value='https://dev.${SITE_DOMAIN_EXCLUDING_WWW}' WHERE option_name='siteurl'"
     fi
     
-    ## delete tmp files ##
-    ss_rm /tmp/sync-development.sql
+fi
     
 ####################################################################################################
-#### F. SS-Sync-Development: Copy All Files From Production To Development #########################
+#### H. SS-Sync-Development: Copy Relevant Files From Production To Development ####################
 ####################################################################################################
 
 ## here we copy over everything from production to dev including media uploads folder ##
+## very large files e.g. backup archives are always skipped in this snippet ##
 
 ## copy wp-content files over (does not skip uploads) ##
-ss_rsync --max-size=5mb --exclude mu-plugins /var/www/html/wp-content/ /var/www/html/dev/wp-content
-    
+ss_rsync --max-size=25mb --exclude 'blacklist.txt' --exclude 'object-cache.php' --exclude='*/mu-plugins/' --exclude='*/temp/' --exclude='*/upgrade/' /var/www/html/wp-content/ /var/www/html/dev/wp-content
+
 ## delete potential run-on subdirectories ##
 ss_rm /var/www/html/dev/dev*
-    
+ss_rm /var/www/html/dev/wp-content/wp-content*
+
+## remove object-cache.php if exists ##
+ss_rm /var/www/html/dev/wp-content/object-cache.php*
+
 ####################################################################################################
-#### G. SS-Sync-Development: Run SS-Install-WordPress-Config (Conditional) #########################
+#### I. SS-Sync-Development: Run SS-Install-WordPress-Config (Conditional) #########################
 ####################################################################################################
 
-## below snippet will install wp-config.php in case does not exist already in staging ##
-## this is a failsafe in case staging enabled in ss-config post-installation ##
+## below snippet will install wp-config.php in case does not exist already in development ##
+## this is a failsafe in case development enabled in ss-config post-installation ##
 
-## run ss-install-wordpress-config ##
-if [[ ! -f "/var/www/html/dev/wp-config.php" ]]; then
+if [[ ! -s "/var/www/html/dev/wp-config.php" ]]; then
     source "${PATH_SS_INSTALL_WORDPRESS_CONFIG}"
 fi
 
 ####################################################################################################
-#### H. SS-Sync-Development: Run SS-Install-WordPress-MU-Plugins (Conditional) #####################
+#### J. SS-Sync-Development: Run SS-Install-WordPress-MU-Plugins (Conditional) #####################
 ####################################################################################################
 
-## below snippet will install MU plugins in case they do not exist already in staging ##
-## this is a failsafe in case staging enabled in ss-config post-installation ##
+## below snippet will install MU plugins in case they do not exist already in development ##
+## this is a failsafe in case development enabled in ss-config post-installation ##
 
-## run ss-install-wordpress-mu-plugins ##
-if [[ ! -f "/var/www/html/dev/wp-content/mu-plugins/xxx-common.php" ]]; then
+if [[ ! -s "/var/www/html/dev/wp-content/mu-plugins/000-common.php" ]]; then
     source "${PATH_SS_INSTALL_WORDPRESS_MU_PLUGINS}"
 fi
 
 ####################################################################################################
-#### I. SS-Sync-Development: Fix Any Hardcoded Links In Development Theme Files ####################
+#### K. SS-Sync-Development: Fix Any Hardcoded Links In Development Theme Files ####################
 ####################################################################################################
 
 ## many themes (or custom-coded themes) often contain hardcoded HTML assets and links ##
-## here we forcefully fix these links to ensure staging sites render properly ##
+## here we forcefully fix these links to ensure development site renders properly ##
 
-## fix hardcoded theme links ##
-find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i "s#https://${SITE_DOMAIN_INCLUDING_WWW}#https://dev.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
-find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i "s#http://${SITE_DOMAIN_INCLUDING_WWW}#https://dev.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
-find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i "s#https://${SITE_DOMAIN_EXCLUDING_WWW}#https://dev.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
-find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i "s#http://${SITE_DOMAIN_EXCLUDING_WWW}#https://dev.${SITE_DOMAIN_EXCLUDING_WWW}#g" {} +
+find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i'' "s|https://${SITE_DOMAIN_INCLUDING_WWW}|https://dev.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
+find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i'' "s|http://${SITE_DOMAIN_INCLUDING_WWW}|https://dev.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
+find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i'' "s|https://${SITE_DOMAIN_EXCLUDING_WWW}|https://dev.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
+find /var/www/html/dev/wp-content/themes/ -type f -exec sed -i'' "s|http://${SITE_DOMAIN_EXCLUDING_WWW}|https://dev.${SITE_DOMAIN_EXCLUDING_WWW}|g" {} +
 
-## end parent if ##
-fi
+####################################################################################################
+#### L. SS-Sync-Development: Fix Incorrect URLs In Development Database ############################
+####################################################################################################
 
-## end parent parent if ##
+## here we use WP-CLI to search and replace prod domain with development domain in MySQL ##
+## this is not super necessary due to wp-config.php but can help avoid issues ##
+
+sudo -u www-data "${PATH_WP_CLI}" --path="/var/www/html/dev" search-replace "https://${SITE_FULL_DOMAIN}" "https://dev.${SITE_DOMAIN_EXCLUDING_WWW}" --all-tables > /dev/null 2>&1
+
+####################################################################################################
+#### M. SS-Sync-Development: Reset Permissions (WordPress) ########################################
+####################################################################################################
+
+## run ss-perms-wordpress-packages ##
+source "${PATH_SS_PERMS_WORDPRESS_PACKAGES}"
+
+## run ss-perms-wordpress-mu-plugins ##
+source "${PATH_SS_PERMS_WORDPRESS_MU_PLUGINS}"
+
+## run ss-perms-wordpress-config ##
+source "${PATH_SS_PERMS_WORDPRESS_CONFIG}"
+
+####################################################################################################
+#### N. SS-Sync-Development: Skip If Conditions Not Met ############################################
+####################################################################################################
+
+else
+
+FAILED_CONDITIONS=""
+
+[[ "${DEV_SITE}" != "true" ]] && FAILED_CONDITIONS+=" DEV_SITE!=true"
+[[ "${SS_SYNC_DEVELOPMENT}" != "true" ]] && FAILED_CONDITIONS+=" SS_SYNC_DEVELOPMENT!=true"
+[[ "${WP_MULTISITE}" == "true" ]] && FAILED_CONDITIONS+=" WP_MULTISITE==true"
+[[ "${SS_LOCKDOWN}" == "true" ]] && FAILED_CONDITIONS+=" SS_LOCKDOWN==true"
+
+ss_echo "${COLOR_ERROR}ss-sync-development skipped: One or more conditions not met: ${FAILED_CONDITIONS} ${COLOR_RESET}"
+
 fi
 
 ####################################################################################################
-#### J. SS-Sync-Development: Reset Permissions (SlickStack Scripts) ################################
+#### O. SS-Sync-Development: Cleanup Temporary Files ###############################################
+####################################################################################################
+
+ss_rm "${TMP_DEVELOPMENT_SYNC_SQL}"
+
+####################################################################################################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
@@ -193,6 +235,7 @@ chmod 0700 /var/www/crons/custom/*cron* ## 0700 means only root/sudo can execute
 #### SlickStack: External References Used To Improve This Script (Thanks, Interwebz) ###############
 ####################################################################################################
 
+## Ref: ChatGPT
 ## Ref: https://community.centminmod.com/threads/wp-engine-type-production-staging-file-and-db-sync.19720/
 ## Ref: https://softwareengineering.stackexchange.com/questions/117945/staging-environment-vs-production-environment
 ## Ref: https://www.thegeekstuff.com/2011/01/rsync-exclude-files-and-folders/

@@ -30,7 +30,6 @@ source /var/www/ss-functions
 ## A. Touch Timestamp File
 ## B. Message (Begin Script)
 ## C. Reset Permissions (Ubuntu Utils)
-## D. Reset Permissions (SlickStack Scripts)
 
 ####################################################################################################
 #### A. SS-Perms-Ubuntu-Utils: Touch Timestamp File ################################################
@@ -39,7 +38,6 @@ source /var/www/ss-functions
 ## this is a dummy timestamp file that will remember the last time this script was run ##
 ## it can be useful for developer reference and is sometimes used by SlickStack ##
 
-## script timestamp ##
 ss_touch "${TIMESTAMP_SS_PERMS_UBUNTU_UTILS}"
 
 ####################################################################################################
@@ -47,9 +45,8 @@ ss_touch "${TIMESTAMP_SS_PERMS_UBUNTU_UTILS}"
 ####################################################################################################
 
 ## this is a simple message that announces to the shell the purpose of this bash script ##
-## it will only be noticed by sudo users who manually call ss core bash scripts ##
+## it will only be seen by sudo users who manually run this script in the shell ##
 
-## echo message ##
 ss_echo "${COLOR_INFO}Running ss-perms-ubuntu-utils... ${COLOR_RESET}"
 
 ####################################################################################################
@@ -57,12 +54,12 @@ ss_echo "${COLOR_INFO}Running ss-perms-ubuntu-utils... ${COLOR_RESET}"
 ####################################################################################################
 
 ## reset /dev/null permissions ##
-# rm /dev/null
+# ss_rm /dev/null
 # mknod /dev/null c 1 3
 chmod 666 /dev/null
 
 ####################################################################################################
-#### D. SS-Perms-Ubuntu-Utils: Reset Permissions (SlickStack Scripts) ##############################
+#### SlickStack: Reset Permissions (SlickStack Scripts) ############################################
 ####################################################################################################
 
 ## we include this permissions reset in all cron jobs and bash scripts for redundancy ##
